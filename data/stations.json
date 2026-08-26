@@ -1,0 +1,142 @@
+{
+    "hanoi": {
+        "name": "Hà Nội",
+        "lat": 21.0285,
+        "lon": 105.8542,
+        "zoom": 10,
+        "status": "Đang hoạt động",
+        "waterLevel": "125 cm",
+        "flow": "350 m³/s",
+        "temperature": "28 °C",
+    "history": [
+    {
+        "time": "2026-08-10T08:00:00",
+        "waterLevel": 118
+    },
+    {
+        "time": "2026-08-10T09:00:00",
+        "waterLevel": 120
+    },
+    {
+        "time": "2026-08-10T10:00:00",
+        "waterLevel": 121
+    },
+    {
+        "time": "2026-08-10T11:00:00",
+        "waterLevel": 123
+    },
+    {
+        "time": "2026-08-10T12:00:00",
+        "waterLevel": 122
+    },
+
+    {
+        "time": "2026-08-11T08:00:00",
+        "waterLevel": 121
+    },
+    {
+        "time": "2026-08-11T09:00:00",
+        "waterLevel": 123
+    },
+    {
+        "time": "2026-08-11T10:00:00",
+        "waterLevel": 125
+    },
+    {
+        "time": "2026-08-11T11:00:00",
+        "waterLevel": 127
+    },
+    {
+        "time": "2026-08-11T12:00:00",
+        "waterLevel": 126
+    },
+
+    {
+        "time": "2026-08-12T08:00:00",
+        "waterLevel": 120
+    },
+    {
+        "time": "2026-08-12T09:00:00",
+        "waterLevel": 123
+    },
+    {
+        "time": "2026-08-12T10:00:00",
+        "waterLevel": 125
+    },
+    {
+        "time": "2026-08-12T11:00:00",
+        "waterLevel": 128
+    },
+    {
+        "time": "2026-08-12T12:00:00",
+        "waterLevel": 126
+    }
+]
+},
+
+    "hungyen": {
+        "name": "Hưng Yên",
+        "lat": 20.6464,
+        "lon": 106.0511,
+        "zoom": 10,
+        "status": "Đang hoạt động",
+        "waterLevel": "98 cm",
+        "flow": "280 m³/s",
+        "temperature": "29 °C",
+        "history": [
+    {
+        "time": "2026-08-12T08:00:00",
+        "waterLevel": 110
+    },
+    {
+        "time": "2026-08-12T09:00:00",
+        "waterLevel": 112
+    },
+    {
+        "time": "2026-08-12T10:00:00",
+        "waterLevel": 114
+    },
+    {
+        "time": "2026-08-12T11:00:00",
+        "waterLevel": 116
+    },
+    {
+        "time": "2026-08-12T12:00:00",
+        "waterLevel": 115
+    }
+]
+    },
+
+    "namdinh": {
+        "name": "Nam Định",
+        "lat": 20.4388,
+        "lon": 106.1621,
+        "zoom": 10,
+        "status": "Đang hoạt động",
+        "waterLevel": "145 cm",
+        "flow": "410 m³/s",
+        "temperature": "27 °C",
+        "history": [
+    {
+        "time": "2026-08-12T08:00:00",
+        "waterLevel": 520
+    },
+    {
+        "time": "2026-08-12T09:00:00",
+        "waterLevel": 522
+    },
+    {
+        "time": "2026-08-12T10:00:00",
+        "waterLevel": 562
+    },
+    {
+        "time": "2026-08-12T11:00:00",
+        "waterLevel": 578
+    },
+    {
+        "time": "2026-08-12T12:00:00",
+        "waterLevel": 600
+    }
+]
+    }
+}

@@ -1,0 +1,4 @@
+node_modules/
+backend/hydro.db
+backend/logs/
+.env
