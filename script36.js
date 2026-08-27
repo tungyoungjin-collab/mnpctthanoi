@@ -137,7 +137,11 @@ function buildChartConfig(chartData, stationName) {
                 tension: 0.3,
                 pointRadius: 3,
                 pointHoverRadius: 6,
-                spanGaps: false
+                sspanGaps: false,
+                segment: {
+                    borderColor: ctx => ctx.p0 != null && ctx.p1 != null ? 'rgb(59, 130, 246)' : 'rgba(0,0,0,0)'
+                }
+                
             }]
         },
         options: {
