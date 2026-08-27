@@ -9,26 +9,6 @@ let waterChart = null;
  
  
 // ========================================
-// TIMEZONE CONVERSION (UTC → Vietnam UTC+7)
-// ========================================
- 
-function convertUTCToVietnam(utcDate) {
-    const date = new Date(utcDate);
-    const vietnamOffset = 7 * 60; // UTC+7 in minutes
-    const utcTime = date.getTime() + (date.getTimezoneOffset() * 60000);
-    const vietnamTime = new Date(utcTime + (vietnamOffset * 60000));
-    return vietnamTime;
-}
- 
-function formatTimeVietnam(timestamp) {
-    const vietnamDate = convertUTCToVietnam(timestamp);
-    const hours = String(vietnamDate.getHours()).padStart(2, '0');
-    const minutes = String(vietnamDate.getMinutes()).padStart(2, '0');
-    return `${hours}:${minutes}`;
-}
- 
- 
-// ========================================
 // SỐ NGÀY HIỂN THỊ TRÊN BIỂU ĐỒ
 // (theo lựa chọn ở bộ lọc thời gian)
 // ========================================
@@ -147,13 +127,13 @@ function getStatusClass(status) {
 }
  
 function formatUpdateTime(record) {
-    const vietnamDate = convertUTCToVietnam(record.timestamp);
-    const day = String(vietnamDate.getDate()).padStart(2, "0");
-    const month = String(vietnamDate.getMonth() + 1).padStart(2, "0");
-    const year = vietnamDate.getFullYear();
-    const hours = String(vietnamDate.getHours()).padStart(2, "0");
-    const minutes = String(vietnamDate.getMinutes()).padStart(2, "0");
-    return `Cập nhật lúc: ${hours}:${minutes} ngày ${day}/${month}/${year}`;
+    // Lấy ngày từ timestamp, nhưng dùng time field (đã là giờ Việt Nam)
+    const date = new Date(record.timestamp);
+    const day = String(date.getUTCDate()).padStart(2, "0");
+    const month = String(date.getUTCMonth() + 1).padStart(2, "0");
+    const year = date.getUTCFullYear();
+    const time = record.time; // Dùng time field trực tiếp (đã là giờ Việt Nam)
+    return `Cập nhật lúc: ${time} ngày ${day}/${month}/${year}`;
 }
  
 // Cập nhật khối thông tin trạm (mực nước, trạng thái, thời gian cập nhật).
