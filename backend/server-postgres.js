@@ -159,7 +159,13 @@ async function filterNewStationData(data) {
             `, [station.stationId]);
 
             const latest = result.rows[0];
-            if (!latest || station.timestamp > latest.timestamp) {
+            // Convert to Date objects for proper comparison
+            const newTime = new Date(station.timestamp).getTime();
+            const latestTime = latest ? new Date(latest.timestamp).getTime() : 0;
+            
+            console.log(`Station ${station.stationId}: new=${newTime}, latest=${latestTime}`);
+            
+            if (!latest || newTime > latestTime) {
                 newData.push(station);
             }
         } catch (error) {
