@@ -136,7 +136,8 @@ function buildChartConfig(chartData, stationName) {
                 borderWidth: 2,
                 tension: 0.3,
                 pointRadius: 3,
-                pointHoverRadius: 6
+                pointHoverRadius: 6,
+                spanGaps: false
             }]
         },
         options: {
