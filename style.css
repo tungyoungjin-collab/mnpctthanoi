@@ -286,27 +286,242 @@ footer {
 
 
 /* =========================
-   ĐIỆN THOẠI
+   ĐIỆN THOẠI (Tablet: 768px trở xuống)
 ========================= */
 
 @media (max-width: 768px) {
     .header {
-        padding: 15px;
+        flex-direction: column;
+        gap: 10px;
+        padding: 10px;
+        text-align: center;
+    }
+
+    .logo {
+        width: 60px;
+        height: 45px;
+    }
+
+    .logo img {
+        width: 70px;
+        height: 70px;
     }
 
     .title h1 {
         font-size: 18px;
     }
 
+    .title p {
+        font-size: 12px;
+    }
+
+    .user-info {
+        padding: 5px;
+        font-size: 14px;
+    }
+
     .menu {
         flex-wrap: wrap;
+        padding-left: 10px;
+        gap: 5px;
     }
 
     .menu a {
-        padding: 10px 15px;
+        padding: 8px 10px;
+        margin-left: 5px;
+        font-size: 13px;
     }
 
-    .map-placeholder {
-        height: 400px;
+    .main-content {
+        flex-direction: column;
+        padding: 10px;
+        gap: 15px;
+    }
+
+    .map-section {
+        flex: 1;
+        min-height: 350px;
+        order: 1;
+    }
+
+    .map-section h2 {
+        font-size: 16px;
+    }
+
+    #windy {
+        height: 350px;
+    }
+
+    .data-section {
+        flex: 1;
+        min-height: auto;
+        order: 2;
+        padding: 10px;
+    }
+
+    .data-section h2 {
+        font-size: 16px;
+    }
+
+    .station-select {
+        flex-direction: column;
+        align-items: flex-start;
+        padding: 8px;
+    }
+
+    .station-select select {
+        width: 100%;
+        padding: 8px;
+    }
+
+    .chart-card {
+        margin-top: 15px;
+        padding: 15px;
+    }
+
+    #waterChart {
+        max-height: 280px;
+    }
+
+    .data-row {
+        padding: 10px 8px;
+        font-size: 14px;
+    }
+
+    #update-time {
+        font-size: 12px;
+        margin-top: 8px;
+    }
+
+    footer {
+        padding: 15px;
+        font-size: 14px;
+    }
+}
+
+
+/* =========================
+   ĐIỆN THOẠI NHỎ (Dưới 480px - Portrait)
+========================= */
+
+@media (max-width: 480px) {
+    .header {
+        padding: 8px;
+        gap: 8px;
+    }
+
+    .logo {
+        width: 50px;
+        height: 40px;
+    }
+
+    .logo img {
+        width: 60px;
+        height: 60px;
+    }
+
+    .title h1 {
+        font-size: 16px;
+        margin: 0;
+    }
+
+    .title p {
+        font-size: 11px;
+        margin: 3px 0 0;
+    }
+
+    .user-info {
+        font-size: 12px;
+    }
+
+    .menu {
+        padding-left: 5px;
+    }
+
+    .menu a {
+        padding: 6px 8px;
+        margin-left: 2px;
+        font-size: 12px;
+    }
+
+    .main-content {
+        padding: 8px;
+        gap: 10px;
+    }
+
+    .map-section {
+        min-height: 300px;
+    }
+
+    .map-section h2 {
+        font-size: 14px;
+        padding: 8px;
+    }
+
+    #windy {
+        height: 300px;
+    }
+
+    .data-section h2 {
+        font-size: 14px;
+        padding: 8px;
+    }
+
+    .station-select {
+        padding: 6px;
+        gap: 8px;
+    }
+
+    .station-select label {
+        font-size: 12px;
+    }
+
+    .station-select select {
+        font-size: 14px;
+        padding: 6px;
+    }
+
+    .data-row {
+        padding: 8px 6px;
+        font-size: 13px;
+    }
+
+    .chart-card {
+        margin-top: 10px;
+        padding: 10px;
+    }
+
+    .chart-card h2 {
+        font-size: 14px;
+        margin-bottom: 10px;
+    }
+
+    .chart-filter {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        margin-bottom: 10px;
+    }
+
+    .chart-filter label {
+        font-size: 12px;
+    }
+
+    .chart-filter select {
+        font-size: 13px;
+        padding: 6px;
+    }
+
+    #waterChart {
+        max-height: 250px;
+    }
+
+    #update-time {
+        font-size: 11px;
+    }
+
+    footer {
+        padding: 10px;
+        font-size: 12px;
     }
 }
