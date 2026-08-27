@@ -66,47 +66,20 @@ function createChartData(data, history, days) {
         return itemTime >= startTime && itemTime <= latestTime;
     });
 
-    // Tạo các mốc giờ tròn từ startTime đến latestTime
-    const firstHour = new Date(startTime);
-    firstHour.setMinutes(0, 0, 0);
+    // Chỉ lấy dữ liệu ở phút :00 (để hiển thị theo giờ)
+    const hourlyData = history24h.filter(item => item.time.endsWith(":00"));
 
-    const totalHours = days * 24;
-    const timeline = [];
-
-    for (let i = 0; i <= totalHours; i++) {
-        const time = new Date(firstHour);
-        time.setHours(firstHour.getHours() + i);
-        timeline.push(time);
-    }
-
-    // Nhãn hiển thị: DD/MM HH:00
-    const labels = timeline.map(date => {
-        const day = String(date.getDate()).padStart(2, "0");
-        const month = String(date.getMonth() + 1).padStart(2, "0");
-        const hours = String(date.getHours()).padStart(2, "0");
-        return `${day}/${month} ${hours}:00`;
-    });
-
-    // Chỉ nhận bản ghi đúng phút 00, gộp theo khoá "YYYY-MM-DD HH:00"
-    const hourKey = date =>
-        `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-` +
-        `${String(date.getDate()).padStart(2, "0")} ${String(date.getHours()).padStart(2, "0")}:00`;
-
-    const historyMap = new Map();
-
-    history24h.forEach(item => {
+    // Nhãn + dữ liệu từ hourly data
+    const labels = hourlyData.map(item => {
         const date = new Date(item.timestamp);
-        if (date.getMinutes() === 0) {
-            historyMap.set(hourKey(date), item.waterLevel);
-        }
+        const day = String(date.getUTCDate()).padStart(2, "0");
+        const month = String(date.getUTCMonth() + 1).padStart(2, "0");
+        return `${day}/${month} ${item.time}`; // Dùng time field (Vietnam time)
     });
 
-    // Gán mực nước vào từng mốc giờ (null nếu không có dữ liệu)
-    const values = timeline.map(time =>
-        historyMap.has(hourKey(time)) ? historyMap.get(hourKey(time)) : null
-    );
+    const values = hourlyData.map(item => item.waterLevel);
 
-    return { labels, values, history24h, timeline, latestTime, startTime };
+    return { labels, values, history24h, timeline: [], latestTime, startTime };
 }
  
  
