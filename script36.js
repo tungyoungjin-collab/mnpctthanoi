@@ -51,63 +51,96 @@ function getCommonLatestTime(data) {
 // ========================================
  
 function createChartData(data, history, days) {
+
     const latestTime = getCommonLatestTime(data);
+
     if (!latestTime) {
-        return { labels: [], values: [], history24h: [], latestTime: null, startTime: null };
+        return {
+            labels: [],
+            values: [],
+            history24h: [],
+            timeline: [],
+            latestTime: null,
+            startTime: null
+        };
     }
 
     const startTime = new Date(latestTime.getTime() - days * 24 * 60 * 60 * 1000);
 
-    let history24h = (history || []).filter(item => {
+    const history24h = (history || []).filter(item => {
         const itemTime = new Date(item.timestamp);
         return itemTime >= startTime && itemTime <= latestTime;
     });
 
-    // Lọc giờ tròn (:00)
-    history24h = history24h.filter(item => item.time.endsWith(":00"));
+    // ========================================
+    // TẠO TIMELINE: mỗi giờ từ start đến end
+    // ========================================
+    const timeline = [];
+    const firstHour = new Date(startTime);
+    firstHour.setMinutes(0, 0, 0);
 
-    // Labels: convert UTC+7 và dùng item.time
-    const labels = history24h.map(item => {
-        const utcDate = new Date(item.timestamp);
-        const vietnamDate = new Date(utcDate.getTime() + 7 * 60 * 60 * 1000);
-        const day = String(vietnamDate.getUTCDate()).padStart(2, '0');
-        const month = String(vietnamDate.getUTCMonth() + 1).padStart(2, '0');
-        return `${day}/${month} ${item.time}`;
+    const totalHours = days * 24;
+
+    for (let i = 0; i <= totalHours; i++) {
+        const time = new Date(firstHour);
+        time.setHours(firstHour.getHours() + i);
+        timeline.push(time);
+    }
+
+    // ========================================
+    // TẠO LABELS
+    // ========================================
+    const labels = timeline.map(date => {
+        const day = String(date.getDate()).padStart(2, "0");
+        const month = String(date.getMonth() + 1).padStart(2, "0");
+        const hours = String(date.getHours()).padStart(2, "0");
+        return `${day}/${month} ${hours}:00`;
     });
 
-    const values = history24h.map(item => item.waterLevel);
-    return { labels, values, history24h, latestTime, startTime };
-}
- 
- 
-// ========================================
-// TÁCH DỮ LIỆU THÀNH CÁC SEGMENT (tránh nối qua null)
-// Khi thiếu dữ liệu giờ nào, biểu đồ sẽ ngắt quãng thay vì nối qua
-// ========================================
- 
-function splitDataIntoSegments(labels, values) {
-    const segments = [];
-    let currentSegment = { labels: [], values: [], indices: [] };
- 
-    for (let i = 0; i < values.length; i++) {
-        if (values[i] !== null && values[i] !== undefined) {
-            currentSegment.labels.push(labels[i]);
-            currentSegment.values.push(values[i]);
-            currentSegment.indices.push(i);
-        } else {
-            if (currentSegment.values.length > 0) {
-                segments.push({ ...currentSegment });
-                currentSegment = { labels: [], values: [], indices: [] };
-            }
+    // ========================================
+    // TẠO MAP: CHỈ NHẬN BẢN GHI ĐÚNG HH:00 (Vietnam time)
+    // ========================================
+    const historyMap = new Map();
+
+    history24h.forEach(item => {
+        const utcDate = new Date(item.timestamp);
+        const vietnamDate = new Date(utcDate.getTime() + 7 * 60 * 60 * 1000);
+
+        // Chỉ nhận phút 00
+        if (vietnamDate.getUTCMinutes() !== 0) {
+            return;
         }
-    }
- 
-    if (currentSegment.values.length > 0) {
-        segments.push(currentSegment);
-    }
- 
-    return segments;
+
+        // Key: YYYY-MM-DD HH:00 (Vietnam time)
+        const key =
+            vietnamDate.getUTCFullYear() + "-" +
+            String(vietnamDate.getUTCMonth() + 1).padStart(2, "0") + "-" +
+            String(vietnamDate.getUTCDate()).padStart(2, "0") + " " +
+            String(vietnamDate.getUTCHours()).padStart(2, "0") + ":00";
+
+        historyMap.set(key, item.waterLevel);
+    });
+
+    // ========================================
+    // GÁN MỰC NƯỚC VÀO TIMELINE → null nếu thiếu
+    // ========================================
+    const values = timeline.map(time => {
+        const vietnamTime = new Date(time.getTime() + 7 * 60 * 60 * 1000);
+        
+        const key =
+            vietnamTime.getUTCFullYear() + "-" +
+            String(vietnamTime.getUTCMonth() + 1).padStart(2, "0") + "-" +
+            String(vietnamTime.getUTCDate()).padStart(2, "0") + " " +
+            String(vietnamTime.getUTCHours()).padStart(2, "0") + ":00";
+
+        return historyMap.has(key) ? historyMap.get(key) : null;
+    });
+
+    return { labels, values, history24h, timeline, latestTime, startTime };
 }
+ 
+ 
+
  
  
 // ========================================
@@ -163,7 +196,8 @@ function buildChartConfig(chartData, stationName) {
                 pointRadius: 3,
                 pointHoverRadius: 6,
                 borderColor: 'rgb(59, 130, 246)',
-                backgroundColor: 'rgba(59, 130, 246, 0.1)'
+                backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                spanGaps: false
             }]
         },
         options: {
@@ -182,7 +216,7 @@ function buildChartConfig(chartData, stationName) {
 function applyChartData(chartData, stationName) {
     waterChart.data.labels = chartData.labels;
     waterChart.data.datasets[0].data = chartData.values;
-    waterChart.options.plugins.title.text = "Diễn biến mước nước - Trạm " + stationName;
+    waterChart.options.plugins.title.text = "Diễn biến mực nước - Trạm " + stationName;
     waterChart.update();
 }
  
