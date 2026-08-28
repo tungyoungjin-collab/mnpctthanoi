@@ -140,7 +140,34 @@ function createChartData(data, history, days) {
 }
  
  
-
+// ========================================
+// TÁCH DỮ LIỆU THÀNH CÁC SEGMENT (tránh nối qua null)
+// Khi thiếu dữ liệu giờ nào, biểu đồ sẽ ngắt quãng thay vì nối qua
+// ========================================
+ 
+function splitDataIntoSegments(labels, values) {
+    const segments = [];
+    let currentSegment = { labels: [], values: [], indices: [] };
+ 
+    for (let i = 0; i < values.length; i++) {
+        if (values[i] !== null && values[i] !== undefined) {
+            currentSegment.labels.push(labels[i]);
+            currentSegment.values.push(values[i]);
+            currentSegment.indices.push(i);
+        } else {
+            if (currentSegment.values.length > 0) {
+                segments.push({ ...currentSegment });
+                currentSegment = { labels: [], values: [], indices: [] };
+            }
+        }
+    }
+ 
+    if (currentSegment.values.length > 0) {
+        segments.push(currentSegment);
+    }
+ 
+    return segments;
+}
  
  
 // ========================================
@@ -196,8 +223,7 @@ function buildChartConfig(chartData, stationName) {
                 pointRadius: 3,
                 pointHoverRadius: 6,
                 borderColor: 'rgb(59, 130, 246)',
-                backgroundColor: 'rgba(59, 130, 246, 0.1)',
-                spanGaps: false
+                backgroundColor: 'rgba(59, 130, 246, 0.1)'
             }]
         },
         options: {
@@ -216,7 +242,7 @@ function buildChartConfig(chartData, stationName) {
 function applyChartData(chartData, stationName) {
     waterChart.data.labels = chartData.labels;
     waterChart.data.datasets[0].data = chartData.values;
-    waterChart.options.plugins.title.text = "Diễn biến mực nước - Trạm " + stationName;
+    waterChart.options.plugins.title.text = "Diễn biến mước nước - Trạm " + stationName;
     waterChart.update();
 }
  
