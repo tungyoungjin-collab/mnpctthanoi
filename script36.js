@@ -69,55 +69,20 @@ function createChartData(data, history, days) {
     // LỌC CHỈ LẤY GIỜ TRÒN (:00)
     history24h = history24h.filter(item => item.time && item.time.endsWith(":00"));
 
-    if (history24h.length === 0) {
-        return { labels: [], values: [], history24h: [], latestTime, startTime };
-    }
-
-    // *** TẠO BẢN ĐỒ: key = "DD/MM HH:00" → value = waterLevel (Vietnam time) ***
-    const dataMap = new Map();
-    history24h.forEach(item => {
+    // *** CONVERT TIMESTAMP (UTC) SANG VIETNAM TIME (UTC+7) ***
+    const labels = history24h.map(item => {
         const utcDate = new Date(item.timestamp);
+        // Cộng 7 giờ để được Vietnam time
         const vietnamDate = new Date(utcDate.getTime() + 7 * 60 * 60 * 1000);
         
         const day = String(vietnamDate.getUTCDate()).padStart(2, '0');
         const month = String(vietnamDate.getUTCMonth() + 1).padStart(2, '0');
-        const hour = String(vietnamDate.getUTCHours()).padStart(2, '0');
-        
-        const key = `${day}/${month} ${hour}:00`;
-        dataMap.set(key, item.waterLevel);
+        // item.time đã là Vietnam time rồi
+        return `${day}/${month} ${item.time}`;
     });
 
-    // *** TẠO TIMELINE ĐẦY ĐỦ: mỗi giờ từ startTime đến latestTime ***
-    const firstHour = new Date(startTime);
-    firstHour.setMinutes(0, 0, 0);
-    firstHour.setSeconds(0, 0);
-
-    const hourMs = 60 * 60 * 1000;
-    const totalHours = Math.floor((latestTime - firstHour) / hourMs) + 1;
-
-    const labels = [];
-    const values = [];
-
-    for (let i = 0; i < totalHours; i++) {
-        const hourTime = new Date(firstHour.getTime() + i * hourMs);
-        
-        // Convert UTC → Vietnam time (cộng 7 giờ)
-        const vietnamTime = new Date(hourTime.getTime() + 7 * 60 * 60 * 1000);
-        
-        const day = String(vietnamTime.getUTCDate()).padStart(2, '0');
-        const month = String(vietnamTime.getUTCMonth() + 1).padStart(2, '0');
-        const hour = String(vietnamTime.getUTCHours()).padStart(2, '0');
-        
-        const label = `${day}/${month} ${hour}:00`;
-        labels.push(label);
-        
-        // *** NẾU GIỜ NÀY CÓ DỮ LIỆU → THÊM GIÁ TRỊ, KHÔNG → THÊM NULL ***
-        if (dataMap.has(label)) {
-            values.push(dataMap.get(label));
-        } else {
-            values.push(null);  // → splitDataIntoSegments sẽ tạo gap tại đây
-        }
-    }
+    // Gán mực nước từ history24h
+    const values = history24h.map(item => item.waterLevel);
 
     return { labels, values, history24h, latestTime, startTime };
 }
