@@ -60,100 +60,45 @@ function createChartData(data, history, days) {
         return itemTime >= startTime && itemTime <= latestTime;
     });
 
-    // Lọc chỉ HH:00 - với safety check
-    const hourlyData = history24h.filter(item => {
-        return item && item.time && item.time.endsWith(":00");
-    });
-
-    if (hourlyData.length === 0) {
-        console.warn("Không có dữ liệu HH:00");
-        return {
-            labels: [],
-            values: [],
-            history24h: [],
-            timeline: [],
-            latestTime,
-            startTime
-        };
-    }
+    // Lọc chỉ HH:00
+    const hourlyData = history24h.filter(item => item.time.endsWith(":00"));
 
     // ========================================
-    // TẠO MAP: Vietnam time + item.time
+    // TẠO BẢN ĐỒ: dùng item.time + timestamp date trực tiếp
     // ========================================
     const dataMap = new Map();
 
     hourlyData.forEach(item => {
-        try {
-            const utcDate = new Date(item.timestamp);
-            if (isNaN(utcDate.getTime())) {
-                console.warn("Timestamp không hợp lệ:", item.timestamp);
-                return;
-            }
-            
-            const vietnamDate = new Date(utcDate.getTime() + 7 * 60 * 60 * 1000);
-            
-            const day = String(vietnamDate.getUTCDate()).padStart(2, "0");
-            const month = String(vietnamDate.getUTCMonth() + 1).padStart(2, "0");
-            
-            const key = `${day}/${month} ${item.time}`;
-            dataMap.set(key, item.waterLevel);
-        } catch (e) {
-            console.error("Lỗi tạo map:", e, item);
-        }
-    });
-
-    console.log("DataMap size:", dataMap.size);
-
-    // ========================================
-    // TẠO TIMELINE: mỗi giờ
-    // ========================================
-    const timeline = [];
-    const firstHour = new Date(startTime);
-    firstHour.setMinutes(0, 0, 0);
-
-    const totalHours = days * 24;
-
-    for (let i = 0; i <= totalHours; i++) {
-        const time = new Date(firstHour);
-        time.setHours(firstHour.getHours() + i);
-        timeline.push(time);
-    }
-
-    // ========================================
-    // TẠO LABELS: Vietnam time
-    // ========================================
-    const labels = timeline.map(utcTime => {
-        const vietnamTime = new Date(utcTime.getTime() + 7 * 60 * 60 * 1000);
-        const day = String(vietnamTime.getUTCDate()).padStart(2, "0");
-        const month = String(vietnamTime.getUTCMonth() + 1).padStart(2, "0");
-        const hours = String(vietnamTime.getUTCHours()).padStart(2, "0");
+        // item.time đã là Vietnam time (e.g., "22:00")
+        // Lấy date từ timestamp (dùng getDate, getMonth, getHours - local time interpretation)
+        const date = new Date(item.timestamp);
         
-        return `${day}/${month} ${hours}:00`;
+        const key =
+            date.getFullYear() + "-" +
+            String(date.getMonth() + 1).padStart(2, "0") + "-" +
+            String(date.getDate()).padStart(2, "0") + " " +
+            item.time;  // Dùng item.time trực tiếp
+
+        dataMap.set(key, item.waterLevel);
     });
 
     // ========================================
-    // GÁN MỰC NƯỚC: null → GAP
+    // TẠO LABELS từ dữ liệu thực (không tạo timeline)
     // ========================================
-    const values = timeline.map(utcTime => {
-        const vietnamTime = new Date(utcTime.getTime() + 7 * 60 * 60 * 1000);
-        const day = String(vietnamTime.getUTCDate()).padStart(2, "0");
-        const month = String(vietnamTime.getUTCMonth() + 1).padStart(2, "0");
-        const hours = String(vietnamTime.getUTCHours()).padStart(2, "0");
-        
-        const key = `${day}/${month} ${hours}:00`;
-        
-        return dataMap.has(key) ? dataMap.get(key) : null;
+    const labels = hourlyData.map(item => {
+        const date = new Date(item.timestamp);
+        const day = String(date.getDate()).padStart(2, "0");
+        const month = String(date.getMonth() + 1).padStart(2, "0");
+        return `${day}/${month} ${item.time}`;  // Dùng item.time từ API
     });
 
-    console.log("Timeline length:", timeline.length);
-    console.log("Labels length:", labels.length);
-    console.log("Values length:", values.length);
+    const values = hourlyData.map(item => item.waterLevel);
 
     return {
         labels,
         values,
         history24h,
-        timeline,
+        timeline: [],
         latestTime,
         startTime
     };
