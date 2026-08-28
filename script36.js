@@ -51,37 +51,64 @@ function getCommonLatestTime(data) {
 // ========================================
  
 function createChartData(data, history, days) {
- 
+
     const latestTime = getCommonLatestTime(data);
- 
+
     if (!latestTime) {
         return { labels: [], values: [], history24h: [], latestTime: null, startTime: null };
     }
- 
+
     const startTime = new Date(latestTime.getTime() - days * 24 * 60 * 60 * 1000);
- 
+
     // Lọc dữ liệu trong khoảng thời gian được chọn
     let history24h = (history || []).filter(item => {
         const itemTime = new Date(item.timestamp);
         return itemTime >= startTime && itemTime <= latestTime;
     });
- 
-    // *** QUAN TRỌNG: LỌC CHỈ LẤY GIỜ TRÒN (:00) - BỎ 10', 20', 30' ***
+
+    // LỌC CHỈ LẤY GIỜ TRÒN (:00)
     history24h = history24h.filter(item => item.time.endsWith(":00"));
- 
-    // Nhãn hiển thị: DD/MM HH:MM (dùng time field từ API - đã là Vietnam time UTC+7)
-    const labels = history24h.map(item => {
+
+    // *** TẠO BẢN ĐỒ DỮ LIỆU: key = "DD/MM HH:00", value = waterLevel ***
+    const dataMap = new Map();
+    history24h.forEach(item => {
         const date = new Date(item.timestamp);
         const day = String(date.getUTCDate()).padStart(2, "0");
         const month = String(date.getUTCMonth() + 1).padStart(2, "0");
-        // QUAN TRỌNG: Dùng item.time trực tiếp từ API (đã là Vietnam time)
-        // Không parse từ timestamp vì sẽ bị lệch 7 giờ
-        return `${day}/${month} ${item.time}`;
+        const hour = String(date.getUTCHours()).padStart(2, "0");
+        const key = `${day}/${month} ${hour}:00`;
+        dataMap.set(key, item.waterLevel);
     });
- 
-    // Gán mực nước từ history24h (đã lọc chỉ giờ tròn)
-    const values = history24h.map(item => item.waterLevel);
- 
+
+    // *** TẠO TIMELINE ĐẦY ĐỦ: mỗi giờ từ startTime đến latestTime ***
+    const firstHour = new Date(startTime);
+    firstHour.setMinutes(0, 0, 0);
+    firstHour.setSeconds(0, 0);
+
+    const totalHours = Math.floor((latestTime - firstHour) / (60 * 60 * 1000)) + 1;
+    
+    const labels = [];
+    const values = [];
+
+    for (let i = 0; i < totalHours; i++) {
+        const hourTime = new Date(firstHour);
+        hourTime.setHours(firstHour.getHours() + i);
+        
+        const day = String(hourTime.getUTCDate()).padStart(2, "0");
+        const month = String(hourTime.getUTCMonth() + 1).padStart(2, "0");
+        const hour = String(hourTime.getUTCHours()).padStart(2, "0");
+        const label = `${day}/${month} ${hour}:00`;
+        
+        labels.push(label);
+        
+        // *** NẾU GIỜU NÀY CÓ DỮ LIỆU → THÊM GIÁ TRỊ, KHÔNG → THÊM NULL ***
+        if (dataMap.has(label)) {
+            values.push(dataMap.get(label));
+        } else {
+            values.push(null);  // GAP SẼ HIỂN THỊ TẠI ĐÂY
+        }
+    }
+
     return { labels, values, history24h, latestTime, startTime };
 }
  
