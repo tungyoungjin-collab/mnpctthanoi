@@ -51,35 +51,62 @@ function getCommonLatestTime(data) {
 // ========================================
  
 function createChartData(data, history, days) {
-
+ 
     const latestTime = getCommonLatestTime(data);
-
+ 
     if (!latestTime) {
         return { labels: [], values: [], history24h: [], timeline: [], latestTime: null, startTime: null };
     }
-
+ 
     const startTime = new Date(latestTime.getTime() - days * 24 * 60 * 60 * 1000);
-
+ 
     // Lọc dữ liệu trong khoảng thời gian được chọn
     const history24h = (history || []).filter(item => {
         const itemTime = new Date(item.timestamp);
         return itemTime >= startTime && itemTime <= latestTime;
     });
-
-    // Chỉ lấy dữ liệu ở phút :00 (để hiển thị theo giờ)
-    const hourlyData = history24h.filter(item => item.time.endsWith(":00"));
-
-    // Nhãn + dữ liệu từ hourly data
-    const labels = hourlyData.map(item => {
-        const date = new Date(item.timestamp);
-        const day = String(date.getUTCDate()).padStart(2, "0");
-        const month = String(date.getUTCMonth() + 1).padStart(2, "0");
-        return `${day}/${month} ${item.time}`; // Dùng time field (Vietnam time)
+ 
+    // Tạo các mốc giờ tròn từ startTime đến latestTime
+    const firstHour = new Date(startTime);
+    firstHour.setMinutes(0, 0, 0);
+ 
+    const totalHours = days * 24;
+    const timeline = [];
+ 
+    for (let i = 0; i <= totalHours; i++) {
+        const time = new Date(firstHour);
+        time.setHours(firstHour.getHours() + i);
+        timeline.push(time);
+    }
+ 
+    // Nhãn hiển thị: DD/MM HH:00
+    const labels = timeline.map(date => {
+        const day = String(date.getDate()).padStart(2, "0");
+        const month = String(date.getMonth() + 1).padStart(2, "0");
+        const hours = String(date.getHours()).padStart(2, "0");
+        return `${day}/${month} ${hours}:00`;
     });
-
-    const values = hourlyData.map(item => item.waterLevel);
-
-    return { labels, values, history24h, timeline: [], latestTime, startTime };
+ 
+    // Chỉ nhận bản ghi đúng phút 00, gộp theo khoá "YYYY-MM-DD HH:00"
+    const hourKey = date =>
+        `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-` +
+        `${String(date.getDate()).padStart(2, "0")} ${String(date.getHours()).padStart(2, "0")}:00`;
+ 
+    const historyMap = new Map();
+ 
+    history24h.forEach(item => {
+        const date = new Date(item.timestamp);
+        if (date.getMinutes() === 0) {
+            historyMap.set(hourKey(date), item.waterLevel);
+        }
+    });
+ 
+    // Gán mực nước vào từng mốc giờ (null nếu không có dữ liệu)
+    const values = timeline.map(time =>
+        historyMap.has(hourKey(time)) ? historyMap.get(hourKey(time)) : null
+    );
+ 
+    return { labels, values, history24h, timeline, latestTime, startTime };
 }
  
  
@@ -99,11 +126,10 @@ function getStatusClass(status) {
  
 function formatUpdateTime(record) {
     const date = new Date(record.timestamp);
-    const day = String(date.getUTCDate()).padStart(2, "0");
-    const month = String(date.getUTCMonth() + 1).padStart(2, "0");
-    const year = date.getUTCFullYear();
-    const time = record.time; // Dùng time field (đã là giờ Việt Nam)
-    return `Cập nhật lúc: ${time} ngày ${day}/${month}/${year}`;
+    const day = String(date.getDate()).padStart(2, "0");
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const year = date.getFullYear();
+    return `Cập nhật lúc: ${record.time} ngày ${day}/${month}/${year}`;
 }
  
 // Cập nhật khối thông tin trạm (mực nước, trạng thái, thời gian cập nhật).
@@ -136,12 +162,7 @@ function buildChartConfig(chartData, stationName) {
                 borderWidth: 2,
                 tension: 0.3,
                 pointRadius: 3,
-                pointHoverRadius: 6,
-                sspanGaps: false,
-                segment: {
-                    borderColor: ctx => ctx.p0 != null && ctx.p1 != null ? 'rgb(59, 130, 246)' : 'rgba(0,0,0,0)'
-                }
-                
+                pointHoverRadius: 6
             }]
         },
         options: {
@@ -155,7 +176,7 @@ function buildChartConfig(chartData, stationName) {
             scales: {
                 y: { title: { display: true, text: "Mực nước (m)" } },
                 x: {
-                    title: { display: true, text: "Thời gian (Giờ Việt Nam)" },
+                    title: { display: true, text: "Thời gian" },
                     ticks: { autoSkip: true, maxTicksLimit: 12 }
                 }
             }
@@ -261,4 +282,3 @@ setInterval(() => {
         });
  
 }, REFRESH_INTERVAL_MS);
- 
