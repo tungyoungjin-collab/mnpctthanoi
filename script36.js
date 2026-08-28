@@ -51,34 +51,37 @@ function getCommonLatestTime(data) {
 // ========================================
  
 function createChartData(data, history, days) {
- 
+
     const latestTime = getCommonLatestTime(data);
- 
+
     if (!latestTime) {
         return { labels: [], values: [], history24h: [], timeline: [], latestTime: null, startTime: null };
     }
- 
+
     const startTime = new Date(latestTime.getTime() - days * 24 * 60 * 60 * 1000);
- 
+
     // Lọc dữ liệu trong khoảng thời gian được chọn
-    const history24h = (history || []).filter(item => {
+    let history24h = (history || []).filter(item => {
         const itemTime = new Date(item.timestamp);
         return itemTime >= startTime && itemTime <= latestTime;
     });
- 
+
+    // *** THÊM DÒNG NÀY: LỌC CHỈ LẤY GIỜ TRÒN (:00) ***
+    history24h = history24h.filter(item => item.time.endsWith(":00"));
+
     // Tạo các mốc giờ tròn từ startTime đến latestTime
     const firstHour = new Date(startTime);
     firstHour.setMinutes(0, 0, 0);
- 
+
     const totalHours = days * 24;
     const timeline = [];
- 
+
     for (let i = 0; i <= totalHours; i++) {
         const time = new Date(firstHour);
         time.setHours(firstHour.getHours() + i);
         timeline.push(time);
     }
- 
+
     // Nhãn hiển thị: DD/MM HH:MM (dùng time field từ API - đã là Vietnam time)
     const labels = history24h.map(item => {
         const date = new Date(item.timestamp);
@@ -86,17 +89,10 @@ function createChartData(data, history, days) {
         const month = String(date.getUTCMonth() + 1).padStart(2, "0");
         return `${day}/${month} ${item.time}`;
     });
- 
-    // Map dữ liệu theo time field (đã là Vietnam time)
-    const historyMap = new Map();
- 
-    history24h.forEach(item => {
-        historyMap.set(item.time, item.waterLevel);
-    });
- 
+
     // Gán mực nước từ history24h (đã lọc dữ liệu đúng)
     const values = history24h.map(item => item.waterLevel);
- 
+
     return { labels, values, history24h, timeline, latestTime, startTime };
 }
  
