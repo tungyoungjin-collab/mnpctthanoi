@@ -60,28 +60,52 @@ function createChartData(data, history, days) {
         return itemTime >= startTime && itemTime <= latestTime;
     });
 
-    // Lọc chỉ HH:00
-    const hourlyData = history24h.filter(item => item.time && item.time.endsWith(":00"));
+    // Lọc chỉ HH:00 - với safety check
+    const hourlyData = history24h.filter(item => {
+        return item && item.time && item.time.endsWith(":00");
+    });
+
+    if (hourlyData.length === 0) {
+        console.warn("Không có dữ liệu HH:00");
+        return {
+            labels: [],
+            values: [],
+            history24h: [],
+            timeline: [],
+            latestTime,
+            startTime
+        };
+    }
 
     // ========================================
-    // TẠO MAP: Vietnam time + item.time từ API
+    // TẠO MAP: Vietnam time + item.time
     // ========================================
     const dataMap = new Map();
 
     hourlyData.forEach(item => {
-        const utcDate = new Date(item.timestamp);
-        const vietnamDate = new Date(utcDate.getTime() + 7 * 60 * 60 * 1000);
-        
-        const day = String(vietnamDate.getUTCDate()).padStart(2, "0");
-        const month = String(vietnamDate.getUTCMonth() + 1).padStart(2, "0");
-        
-        // Key: "DD/MM HH:00" (dùng item.time - đã đúng)
-        const key = `${day}/${month} ${item.time}`;
-        dataMap.set(key, item.waterLevel);
+        try {
+            const utcDate = new Date(item.timestamp);
+            if (isNaN(utcDate.getTime())) {
+                console.warn("Timestamp không hợp lệ:", item.timestamp);
+                return;
+            }
+            
+            const vietnamDate = new Date(utcDate.getTime() + 7 * 60 * 60 * 1000);
+            
+            const day = String(vietnamDate.getUTCDate()).padStart(2, "0");
+            const month = String(vietnamDate.getUTCMonth() + 1).padStart(2, "0");
+            
+            const key = `${day}/${month} ${item.time}`;
+            dataMap.set(key, item.waterLevel);
+        } catch (e) {
+            console.error("Lỗi tạo map:", e, item);
+        }
     });
 
+    console.log("DataMap size:", dataMap.size);
+
     // ========================================
-    // TẠO TIMELINE đầy đủ: mỗi giờ
+    // TẠO TIMELINE: mỗi giờ
     // ========================================
     const timeline = [];
     const firstHour = new Date(startTime);
@@ -108,12 +132,32 @@ function createChartData(data, history, days) {
     });
 
     // ========================================
-    // GÁN MỰC NƯỚC: null nếu thiếu → GAP
+    // GÁN MỰC NƯỚC: null → GAP
     // ========================================
     const values = timeline.map(utcTime => {
         const vietnamTime = new Date(utcTime.getTime() + 7 * 60 * 60 * 1000);
         const day = String(vietnamTime.getUTCDate()).padStart(2, "0");
-        const
+        const month = String(vietnamTime.getUTCMonth() + 1).padStart(2, "0");
+        const hours = String(vietnamTime.getUTCHours()).padStart(2, "0");
+        
+        const key = `${day}/${month} ${hours}:00`;
+        
+        return dataMap.has(key) ? dataMap.get(key) : null;
+    });
+
+    console.log("Timeline length:", timeline.length);
+    console.log("Labels length:", labels.length);
+    console.log("Values length:", values.length);
+
+    return {
+        labels,
+        values,
+        history24h,
+        timeline,
+        latestTime,
+        startTime
+    };
+}
  
  
 // ========================================
