@@ -51,37 +51,39 @@ function getCommonLatestTime(data) {
 // ========================================
  
 function createChartData(data, history, days) {
- 
+
     const latestTime = getCommonLatestTime(data);
- 
+
     if (!latestTime) {
         return { labels: [], values: [], history24h: [], latestTime: null, startTime: null };
     }
- 
+
     const startTime = new Date(latestTime.getTime() - days * 24 * 60 * 60 * 1000);
- 
+
     // Lọc dữ liệu trong khoảng thời gian được chọn
     let history24h = (history || []).filter(item => {
         const itemTime = new Date(item.timestamp);
         return itemTime >= startTime && itemTime <= latestTime;
     });
- 
-    // *** QUAN TRỌNG: LỌC CHỈ LẤY GIỜ TRÒN (:00) - BỎ 10', 20', 30' ***
-    history24h = history24h.filter(item => item.time.endsWith(":00"));
- 
-    // Nhãn hiển thị: DD/MM HH:MM (dùng time field từ API - đã là Vietnam time UTC+7)
+
+    // LỌC CHỈ LẤY GIỜ TRÒN (:00)
+    history24h = history24h.filter(item => item.time && item.time.endsWith(":00"));
+
+    // *** CONVERT TIMESTAMP (UTC) SANG VIETNAM TIME (UTC+7) ***
     const labels = history24h.map(item => {
-        const date = new Date(item.timestamp);
-        const day = String(date.getUTCDate()).padStart(2, "0");
-        const month = String(date.getUTCMonth() + 1).padStart(2, "0");
-        // QUAN TRỌNG: Dùng item.time trực tiếp từ API (đã là Vietnam time)
-        // Không parse từ timestamp vì sẽ bị lệch 7 giờ
+        const utcDate = new Date(item.timestamp);
+        // Cộng 7 giờ để được Vietnam time
+        const vietnamDate = new Date(utcDate.getTime() + 7 * 60 * 60 * 1000);
+        
+        const day = String(vietnamDate.getUTCDate()).padStart(2, '0');
+        const month = String(vietnamDate.getUTCMonth() + 1).padStart(2, '0');
+        // item.time đã là Vietnam time rồi
         return `${day}/${month} ${item.time}`;
     });
- 
-    // Gán mực nước từ history24h (đã lọc chỉ giờ tròn)
+
+    // Gán mực nước từ history24h
     const values = history24h.map(item => item.waterLevel);
- 
+
     return { labels, values, history24h, latestTime, startTime };
 }
  
