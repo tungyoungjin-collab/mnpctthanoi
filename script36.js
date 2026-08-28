@@ -60,69 +60,45 @@ function createChartData(data, history, days) {
         return itemTime >= startTime && itemTime <= latestTime;
     });
 
-    // TẠO TIMELINE: mỗi giờ tròn
-    const timeline = [];
-    const firstHour = new Date(startTime);
-    firstHour.setMinutes(0);
-    firstHour.setSeconds(0);
-    firstHour.setMilliseconds(0);
+    // Lọc chỉ HH:00
+    const hourlyData = history24h.filter(item => item.time.endsWith(":00"));
 
-    const totalHours = days * 24;
+    // ========================================
+    // TẠO BẢN ĐỒ: dùng item.time + timestamp date trực tiếp
+    // ========================================
+    const dataMap = new Map();
 
-    for (let i = 0; i <= totalHours; i++) {
-        const time = new Date(firstHour);
-        time.setHours(firstHour.getHours() + i);
-        timeline.push(time);
-    }
-
-    // TẠO LABELS: convert UTC → Vietnam (+7h), rồi extract DD/MM HH:00
-    const labels = timeline.map(utcTime => {
-        const vietnamTime = new Date(utcTime.getTime() + 7 * 60 * 60 * 1000);
-        const day = String(vietnamTime.getUTCDate()).padStart(2, "0");
-        const month = String(vietnamTime.getUTCMonth() + 1).padStart(2, "0");
-        const hours = String(vietnamTime.getUTCHours()).padStart(2, "0");
-        return `${day}/${month} ${hours}:00`;
-    });
-
-    // TẠO MAP DỮ LIỆU: convert UTC → Vietnam, chỉ nhận HH:00
-    const historyMap = new Map();
-
-    history24h.forEach(item => {
-        const utcDate = new Date(item.timestamp);
-        const vietnamDate = new Date(utcDate.getTime() + 7 * 60 * 60 * 1000);
-
-        // Chỉ nhận phút 00
-        if (vietnamDate.getUTCMinutes() !== 0) {
-            return;
-        }
-
-        // Key: YYYY-MM-DD HH:00 (Vietnam time)
+    hourlyData.forEach(item => {
+        // item.time đã là Vietnam time (e.g., "22:00")
+        // Lấy date từ timestamp (dùng getDate, getMonth, getHours - local time interpretation)
+        const date = new Date(item.timestamp);
+        
         const key =
-            vietnamDate.getUTCFullYear() + "-" +
-            String(vietnamDate.getUTCMonth() + 1).padStart(2, "0") + "-" +
-            String(vietnamDate.getUTCDate()).padStart(2, "0") + " " +
-            String(vietnamDate.getUTCHours()).padStart(2, "0") + ":00";
+            date.getFullYear() + "-" +
+            String(date.getMonth() + 1).padStart(2, "0") + "-" +
+            String(date.getDate()).padStart(2, "0") + " " +
+            item.time;  // Dùng item.time trực tiếp
 
-        historyMap.set(key, item.waterLevel);
+        dataMap.set(key, item.waterLevel);
     });
 
-    // GÁN MỰC NƯỚC: convert UTC → Vietnam, rồi match với map
-    const values = timeline.map(utcTime => {
-        const vietnamTime = new Date(utcTime.getTime() + 7 * 60 * 60 * 1000);
-        const key =
-            vietnamTime.getUTCFullYear() + "-" +
-            String(vietnamTime.getUTCMonth() + 1).padStart(2, "0") + "-" +
-            String(vietnamTime.getUTCDate()).padStart(2, "0") + " " +
-            String(vietnamTime.getUTCHours()).padStart(2, "0") + ":00";
-
-        return historyMap.has(key) ? historyMap.get(key) : null;
+    // ========================================
+    // TẠO LABELS từ dữ liệu thực (không tạo timeline)
+    // ========================================
+    const labels = hourlyData.map(item => {
+        const date = new Date(item.timestamp);
+        const day = String(date.getDate()).padStart(2, "0");
+        const month = String(date.getMonth() + 1).padStart(2, "0");
+        return `${day}/${month} ${item.time}`;  // Dùng item.time từ API
     });
+
+    const values = hourlyData.map(item => item.waterLevel);
 
     return {
         labels,
         values,
         history24h,
-        timeline,
+        timeline: [],
         latestTime,
         startTime
     };
