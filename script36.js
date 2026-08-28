@@ -51,39 +51,31 @@ function getCommonLatestTime(data) {
 // ========================================
  
 function createChartData(data, history, days) {
-
     const latestTime = getCommonLatestTime(data);
-
     if (!latestTime) {
         return { labels: [], values: [], history24h: [], latestTime: null, startTime: null };
     }
 
     const startTime = new Date(latestTime.getTime() - days * 24 * 60 * 60 * 1000);
 
-    // Lọc dữ liệu trong khoảng thời gian được chọn
     let history24h = (history || []).filter(item => {
         const itemTime = new Date(item.timestamp);
         return itemTime >= startTime && itemTime <= latestTime;
     });
 
-    // LỌC CHỈ LẤY GIỜ TRÒN (:00)
-    history24h = history24h.filter(item => item.time && item.time.endsWith(":00"));
+    // Lọc giờ tròn (:00)
+    history24h = history24h.filter(item => item.time.endsWith(":00"));
 
-    // *** CONVERT TIMESTAMP (UTC) SANG VIETNAM TIME (UTC+7) ***
+    // Labels: convert UTC+7 và dùng item.time
     const labels = history24h.map(item => {
         const utcDate = new Date(item.timestamp);
-        // Cộng 7 giờ để được Vietnam time
         const vietnamDate = new Date(utcDate.getTime() + 7 * 60 * 60 * 1000);
-        
         const day = String(vietnamDate.getUTCDate()).padStart(2, '0');
         const month = String(vietnamDate.getUTCMonth() + 1).padStart(2, '0');
-        // item.time đã là Vietnam time rồi
         return `${day}/${month} ${item.time}`;
     });
 
-    // Gán mực nước từ history24h
     const values = history24h.map(item => item.waterLevel);
-
     return { labels, values, history24h, latestTime, startTime };
 }
  
@@ -159,66 +151,38 @@ function updateStationCard(station, { updateName = true, updateStatusClass = tru
 }
  
 function buildChartConfig(chartData, stationName) {
-    // Tách data thành segments (không nối qua null/missing)
-    const segments = splitDataIntoSegments(chartData.labels, chartData.values);
- 
-    // Tạo datasets từ segments - mỗi segment là một đường riêng biệt
-    const datasets = segments.map((segment, idx) => ({
-        label: idx === 0 ? "Mực nước (m)" : "",
-        data: segment.values,
-        borderWidth: 2,
-        tension: 0.3,
-        pointRadius: 3,
-        pointHoverRadius: 6,
-        borderColor: 'rgb(59, 130, 246)',
-        backgroundColor: 'rgba(59, 130, 246, 0.1)'
-    }));
- 
-    const allLabels = segments.length > 0 ? chartData.labels : [];
- 
     return {
         type: "line",
         data: {
-            labels: allLabels,
-            datasets: datasets
+            labels: chartData.labels,
+            datasets: [{
+                label: "Mực nước (m)",
+                data: chartData.values,
+                borderWidth: 2,
+                tension: 0.3,
+                pointRadius: 3,
+                pointHoverRadius: 6,
+                borderColor: 'rgb(59, 130, 246)',
+                backgroundColor: 'rgba(59, 130, 246, 0.1)'
+            }]
         },
         options: {
             responsive: true,
             plugins: {
-                title: {
-                    display: true,
-                    text: "Diễn biến mực nước - Trạm " + stationName
-                }
+                title: { display: true, text: "Diễn biến mực nước - Trạm " + stationName }
             },
             scales: {
                 y: { title: { display: true, text: "Mực nước (m)" } },
-                x: {
-                    title: { display: true, text: "Thời gian" },
-                    ticks: { autoSkip: true, maxTicksLimit: 12 }
-                }
+                x: { title: { display: true, text: "Thời gian" }, ticks: { autoSkip: true, maxTicksLimit: 12 } }
             }
         }
     };
 }
- 
+
 function applyChartData(chartData, stationName) {
-    // Tách data thành segments
-    const segments = splitDataIntoSegments(chartData.labels, chartData.values);
- 
-    // Cập nhật datasets từ segments
-    waterChart.data.datasets = segments.map((segment, idx) => ({
-        label: idx === 0 ? "Mực nước (m)" : "",
-        data: segment.values,
-        borderWidth: 2,
-        tension: 0.3,
-        pointRadius: 3,
-        pointHoverRadius: 6,
-        borderColor: 'rgb(59, 130, 246)',
-        backgroundColor: 'rgba(59, 130, 246, 0.1)'
-    }));
- 
     waterChart.data.labels = chartData.labels;
-    waterChart.options.plugins.title.text = "Diễn biến mực nước - Trạm " + stationName;
+    waterChart.data.datasets[0].data = chartData.values;
+    waterChart.options.plugins.title.text = "Diễn biến mước nước - Trạm " + stationName;
     waterChart.update();
 }
  
