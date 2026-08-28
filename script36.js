@@ -51,78 +51,62 @@ function getCommonLatestTime(data) {
 // ========================================
  
 function createChartData(data, history, days) {
-
+ 
     const latestTime = getCommonLatestTime(data);
-
+ 
     if (!latestTime) {
         return { labels: [], values: [], history24h: [], timeline: [], latestTime: null, startTime: null };
     }
-
+ 
     const startTime = new Date(latestTime.getTime() - days * 24 * 60 * 60 * 1000);
-
+ 
     // Lọc dữ liệu trong khoảng thời gian được chọn
-    let history24h = (history || []).filter(item => {
+    const history24h = (history || []).filter(item => {
         const itemTime = new Date(item.timestamp);
         return itemTime >= startTime && itemTime <= latestTime;
     });
-
-    // *** THÊM DÒNG NÀY: LỌC CHỈ LẤY GIỜ TRÒN (:00) ***
-    history24h = history24h.filter(item => item.time.endsWith(":00"));
-
+ 
     // Tạo các mốc giờ tròn từ startTime đến latestTime
     const firstHour = new Date(startTime);
     firstHour.setMinutes(0, 0, 0);
-
+ 
     const totalHours = days * 24;
     const timeline = [];
-
+ 
     for (let i = 0; i <= totalHours; i++) {
         const time = new Date(firstHour);
         time.setHours(firstHour.getHours() + i);
         timeline.push(time);
     }
-
-    // Nhãn hiển thị: DD/MM HH:MM (dùng time field từ API - đã là Vietnam time)
-    const labels = history24h.map(item => {
-        const date = new Date(item.timestamp);
-        const day = String(date.getUTCDate()).padStart(2, "0");
-        const month = String(date.getUTCMonth() + 1).padStart(2, "0");
-        return `${day}/${month} ${item.time}`;
+ 
+    // Nhãn hiển thị: DD/MM HH:00
+    const labels = timeline.map(date => {
+        const day = String(date.getDate()).padStart(2, "0");
+        const month = String(date.getMonth() + 1).padStart(2, "0");
+        const hours = String(date.getHours()).padStart(2, "0");
+        return `${day}/${month} ${hours}:00`;
     });
-
-    // Gán mực nước từ history24h (đã lọc dữ liệu đúng)
-    const values = history24h.map(item => item.waterLevel);
-
-    return { labels, values, history24h, timeline, latestTime, startTime };
-}
  
+    // Chỉ nhận bản ghi đúng phút 00, gộp theo khoá "YYYY-MM-DD HH:00"
+    const hourKey = date =>
+        `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-` +
+        `${String(date.getDate()).padStart(2, "0")} ${String(date.getHours()).padStart(2, "0")}:00`;
  
-// ========================================
-// TÁCH DỮ LIỆU THÀNH CÁC SEGMENT (tránh nối qua null)
-// ========================================
+    const historyMap = new Map();
  
-function splitDataIntoSegments(labels, values) {
-    const segments = [];
-    let currentSegment = { labels: [], values: [], indices: [] };
- 
-    for (let i = 0; i < values.length; i++) {
-        if (values[i] !== null && values[i] !== undefined) {
-            currentSegment.labels.push(labels[i]);
-            currentSegment.values.push(values[i]);
-            currentSegment.indices.push(i);
-        } else {
-            if (currentSegment.values.length > 0) {
-                segments.push({ ...currentSegment });
-                currentSegment = { labels: [], values: [], indices: [] };
-            }
+    history24h.forEach(item => {
+        const date = new Date(item.timestamp);
+        if (date.getMinutes() === 0) {
+            historyMap.set(hourKey(date), item.waterLevel);
         }
-    }
+    });
  
-    if (currentSegment.values.length > 0) {
-        segments.push(currentSegment);
-    }
+    // Gán mực nước vào từng mốc giờ (null nếu không có dữ liệu)
+    const values = timeline.map(time =>
+        historyMap.has(hourKey(time)) ? historyMap.get(hourKey(time)) : null
+    );
  
-    return segments;
+    return { labels, values, history24h, timeline, latestTime, startTime };
 }
  
  
@@ -168,31 +152,18 @@ function updateStationCard(station, { updateName = true, updateStatusClass = tru
 }
  
 function buildChartConfig(chartData, stationName) {
-    // Tách data thành segments (không nối qua null)
-    const segments = splitDataIntoSegments(chartData.labels, chartData.values);
- 
-    // Tạo datasets từ segments
-    const datasets = segments.map((segment, idx) => ({
-        label: idx === 0 ? "Mực nước (m)" : "",
-        data: segment.values,
-        borderWidth: 2,
-        tension: 0.3,
-        pointRadius: 3,
-        pointHoverRadius: 6,
-        borderColor: 'rgb(59, 130, 246)',
-        backgroundColor: 'rgba(59, 130, 246, 0.1)'
-    }));
- 
-    // Dùng labels từ segment đầu tiên (tất cả segments cùng timeline)
-    const allLabels = segments.length > 0
-        ? chartData.labels
-        : [];
- 
     return {
         type: "line",
         data: {
-            labels: allLabels,
-            datasets: datasets
+            labels: chartData.labels,
+            datasets: [{
+                label: "Mực nước (m)",
+                data: chartData.values,
+                borderWidth: 2,
+                tension: 0.3,
+                pointRadius: 3,
+                pointHoverRadius: 6
+            }]
         },
         options: {
             responsive: true,
@@ -214,22 +185,8 @@ function buildChartConfig(chartData, stationName) {
 }
  
 function applyChartData(chartData, stationName) {
-    // Tách data thành segments
-    const segments = splitDataIntoSegments(chartData.labels, chartData.values);
- 
-    // Cập nhật datasets từ segments
-    waterChart.data.datasets = segments.map((segment, idx) => ({
-        label: idx === 0 ? "Mực nước (m)" : "",
-        data: segment.values,
-        borderWidth: 2,
-        tension: 0.3,
-        pointRadius: 3,
-        pointHoverRadius: 6,
-        borderColor: 'rgb(59, 130, 246)',
-        backgroundColor: 'rgba(59, 130, 246, 0.1)'
-    }));
- 
     waterChart.data.labels = chartData.labels;
+    waterChart.data.datasets[0].data = chartData.values;
     waterChart.options.plugins.title.text = "Diễn biến mực nước - Trạm " + stationName;
     waterChart.update();
 }
