@@ -63,19 +63,39 @@ function createChartData(data, history, days) {
         return itemTime >= startTime && itemTime <= latestTime;
     });
 
-    // Lọc giờ tròn (:00)
     history24h = history24h.filter(item => item.time.endsWith(":00"));
 
-    // Labels: convert UTC+7 và dùng item.time
-    const labels = history24h.map(item => {
+    // *** Bản đồ dữ liệu: key = "DD/MM HH:00" → value = waterLevel ***
+    const dataMap = {};
+    history24h.forEach(item => {
         const utcDate = new Date(item.timestamp);
         const vietnamDate = new Date(utcDate.getTime() + 7 * 60 * 60 * 1000);
         const day = String(vietnamDate.getUTCDate()).padStart(2, '0');
         const month = String(vietnamDate.getUTCMonth() + 1).padStart(2, '0');
-        return `${day}/${month} ${item.time}`;
+        const hour = String(vietnamDate.getUTCHours()).padStart(2, '0');
+        const key = `${day}/${month} ${hour}:00`;
+        dataMap[key] = item.waterLevel;
     });
 
-    const values = history24h.map(item => item.waterLevel);
+    // *** Loop từng giờ từ start đến end, thêm null nếu không có dữ liệu ***
+    const labels = [];
+    const values = [];
+    let currentTime = new Date(startTime);
+    currentTime.setMinutes(0, 0, 0);
+
+    while (currentTime <= latestTime) {
+        const vietnamTime = new Date(currentTime.getTime() + 7 * 60 * 60 * 1000);
+        const day = String(vietnamTime.getUTCDate()).padStart(2, '0');
+        const month = String(vietnamTime.getUTCMonth() + 1).padStart(2, '0');
+        const hour = String(vietnamTime.getUTCHours()).padStart(2, '0');
+        const label = `${day}/${month} ${hour}:00`;
+        
+        labels.push(label);
+        values.push(dataMap[label] || null);  // null → GAP
+        
+        currentTime = new Date(currentTime.getTime() + 60 * 60 * 1000);
+    }
+
     return { labels, values, history24h, latestTime, startTime };
 }
  
@@ -163,7 +183,8 @@ function buildChartConfig(chartData, stationName) {
                 pointRadius: 3,
                 pointHoverRadius: 6,
                 borderColor: 'rgb(59, 130, 246)',
-                backgroundColor: 'rgba(59, 130, 246, 0.1)'
+                backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                spanGaps: false  // Không nối qua null
             }]
         },
         options: {
