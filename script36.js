@@ -51,32 +51,91 @@ function getCommonLatestTime(data) {
 // ========================================
  
 function createChartData(data, history, days) {
+
     const latestTime = getCommonLatestTime(data);
+
     if (!latestTime) {
-        return { labels: [], values: [], history24h: [], latestTime: null, startTime: null };
+        return {
+            labels: [],
+            values: [],
+            history24h: [],
+            timeline: [],
+            latestTime: null,
+            startTime: null
+        };
     }
 
     const startTime = new Date(latestTime.getTime() - days * 24 * 60 * 60 * 1000);
 
-    let history24h = (history || []).filter(item => {
+    const history24h = (history || []).filter(item => {
         const itemTime = new Date(item.timestamp);
         return itemTime >= startTime && itemTime <= latestTime;
     });
 
-    // Lọc giờ tròn (:00)
-    history24h = history24h.filter(item => item.time.endsWith(":00"));
+    // ========================================
+    // TẠO TIMELINE: mỗi giờ từ start đến end (dùng UTC)
+    // ========================================
+    const timeline = [];
+    const firstHour = new Date(startTime);
+    firstHour.setUTCMinutes(0, 0, 0);
 
-    // Labels: convert UTC+7 và dùng item.time
-    const labels = history24h.map(item => {
-        const utcDate = new Date(item.timestamp);
-        const vietnamDate = new Date(utcDate.getTime() + 7 * 60 * 60 * 1000);
-        const day = String(vietnamDate.getUTCDate()).padStart(2, '0');
-        const month = String(vietnamDate.getUTCMonth() + 1).padStart(2, '0');
-        return `${day}/${month} ${item.time}`;
+    const totalHours = days * 24;
+
+    for (let i = 0; i <= totalHours; i++) {
+        const time = new Date(firstHour);
+        time.setUTCHours(firstHour.getUTCHours() + i);  // *** UTC, không phải local time ***
+        timeline.push(time);
+    }
+
+    // ========================================
+    // TẠO LABELS: convert UTC sang Vietnam (+7h)
+    // ========================================
+    const labels = timeline.map(utcTime => {
+        const vietnamTime = new Date(utcTime.getTime() + 7 * 60 * 60 * 1000);
+        const day = String(vietnamTime.getUTCDate()).padStart(2, "0");
+        const month = String(vietnamTime.getUTCMonth() + 1).padStart(2, "0");
+        const hours = String(vietnamTime.getUTCHours()).padStart(2, "0");
+        return `${day}/${month} ${hours}:00`;
     });
 
-    const values = history24h.map(item => item.waterLevel);
-    return { labels, values, history24h, latestTime, startTime };
+    // ========================================
+    // TẠO MAP: CHỈ NHẬN BẢN GHI ĐÚNG HH:00 (Vietnam time)
+    // ========================================
+    const historyMap = new Map();
+
+    history24h.forEach(item => {
+        const utcDate = new Date(item.timestamp);
+        const vietnamDate = new Date(utcDate.getTime() + 7 * 60 * 60 * 1000);
+
+        if (vietnamDate.getUTCMinutes() !== 0) {
+            return;
+        }
+
+        const key =
+            vietnamDate.getUTCFullYear() + "-" +
+            String(vietnamDate.getUTCMonth() + 1).padStart(2, "0") + "-" +
+            String(vietnamDate.getUTCDate()).padStart(2, "0") + " " +
+            String(vietnamDate.getUTCHours()).padStart(2, "0") + ":00";
+
+        historyMap.set(key, item.waterLevel);
+    });
+
+    // ========================================
+    // GÁN MỰC NƯỚC VÀO TIMELINE
+    // ========================================
+    const values = timeline.map(utcTime => {
+        const vietnamTime = new Date(utcTime.getTime() + 7 * 60 * 60 * 1000);
+        
+        const key =
+            vietnamTime.getUTCFullYear() + "-" +
+            String(vietnamTime.getUTCMonth() + 1).padStart(2, "0") + "-" +
+            String(vietnamTime.getUTCDate()).padStart(2, "0") + " " +
+            String(vietnamTime.getUTCHours()).padStart(2, "0") + ":00";
+
+        return historyMap.has(key) ? historyMap.get(key) : null;
+    });
+
+    return { labels, values, history24h, timeline, latestTime, startTime };
 }
  
  
