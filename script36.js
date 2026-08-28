@@ -1,5 +1,16 @@
+// Đường dẫn tương đối: hoạt động đúng cả khi chạy local (node server.js)
+// lẫn khi đã deploy lên host thật, vì frontend và API cùng chung 1 domain.
+const API_URL = "/api/stations";
+const REFRESH_INTERVAL_MS = 60000;
+ 
+// Dữ liệu 14 trạm mới nhất (được cập nhật mỗi lần fetch, kể cả khi tự động làm mới)
+let allStationsData = [];
+let waterChart = null;
+ 
+ 
 // ========================================
-// LẤY SỐ NGÀY CHO BIỂU ĐỒ
+// SỐ NGÀY HIỂN THỊ TRÊN BIỂU ĐỒ
+// (theo lựa chọn ở bộ lọc thời gian)
 // ========================================
  
 function getChartDays() {
@@ -17,7 +28,7 @@ function getChartDays() {
  
  
 // ========================================
-// LẤY MỐC THỜI GIAN CHUNG 14 TRẠM
+// MỐC THỜI GIAN MỚI NHẤT DÙNG CHUNG CHO 14 TRẠM
 // ========================================
  
 function getCommonLatestTime(data) {
@@ -35,73 +46,144 @@ function getCommonLatestTime(data) {
  
  
 // ========================================
-// TẠO DỮ LIỆU BIỂU ĐỒ
+// TẠO DỮ LIỆU BIỂU ĐỒ: CHỈ LẤY GIỜ TRÒN (:00)
+// BỎ QUA 10', 20', 30', ... ĐỂ HIỂN THỊ THEO GIỜ
 // ========================================
  
 function createChartData(data, history, days) {
-
     const latestTime = getCommonLatestTime(data);
-
     if (!latestTime) {
-        return {
-            labels: [],
-            values: [],
-            history24h: [],
-            timeline: [],
-            latestTime: null,
-            startTime: null
-        };
+        return { labels: [], values: [], history24h: [], latestTime: null, startTime: null };
     }
 
     const startTime = new Date(latestTime.getTime() - days * 24 * 60 * 60 * 1000);
 
-    const history24h = (history || []).filter(item => {
+    let history24h = (history || []).filter(item => {
         const itemTime = new Date(item.timestamp);
         return itemTime >= startTime && itemTime <= latestTime;
     });
 
-    // Lọc chỉ HH:00
-    const hourlyData = history24h.filter(item => item.time.endsWith(":00"));
+    // Lọc giờ tròn (:00)
+    history24h = history24h.filter(item => item.time.endsWith(":00"));
 
-    // ========================================
-    // TẠO BẢN ĐỒ: dùng item.time + timestamp date trực tiếp
-    // ========================================
-    const dataMap = new Map();
-
-    hourlyData.forEach(item => {
-        // item.time đã là Vietnam time (e.g., "22:00")
-        // Lấy date từ timestamp (dùng getDate, getMonth, getHours - local time interpretation)
-        const date = new Date(item.timestamp);
-        
-        const key =
-            date.getFullYear() + "-" +
-            String(date.getMonth() + 1).padStart(2, "0") + "-" +
-            String(date.getDate()).padStart(2, "0") + " " +
-            item.time;  // Dùng item.time trực tiếp
-
-        dataMap.set(key, item.waterLevel);
+    // Labels: convert UTC+7 và dùng item.time
+    const labels = history24h.map(item => {
+        const utcDate = new Date(item.timestamp);
+        const vietnamDate = new Date(utcDate.getTime() + 7 * 60 * 60 * 1000);
+        const day = String(vietnamDate.getUTCDate()).padStart(2, '0');
+        const month = String(vietnamDate.getUTCMonth() + 1).padStart(2, '0');
+        return `${day}/${month} ${item.time}`;
     });
 
-    // ========================================
-    // TẠO LABELS từ dữ liệu thực (không tạo timeline)
-    // ========================================
-    const labels = hourlyData.map(item => {
-        const date = new Date(item.timestamp);
-        const day = String(date.getDate()).padStart(2, "0");
-        const month = String(date.getMonth() + 1).padStart(2, "0");
-        return `${day}/${month} ${item.time}`;  // Dùng item.time từ API
-    });
-
-    const values = hourlyData.map(item => item.waterLevel);
-
+    const values = history24h.map(item => item.waterLevel);
+    return { labels, values, history24h, latestTime, startTime };
+}
+ 
+ 
+// ========================================
+// TÁCH DỮ LIỆU THÀNH CÁC SEGMENT (tránh nối qua null)
+// Khi thiếu dữ liệu giờ nào, biểu đồ sẽ ngắt quãng thay vì nối qua
+// ========================================
+ 
+function splitDataIntoSegments(labels, values) {
+    const segments = [];
+    let currentSegment = { labels: [], values: [], indices: [] };
+ 
+    for (let i = 0; i < values.length; i++) {
+        if (values[i] !== null && values[i] !== undefined) {
+            currentSegment.labels.push(labels[i]);
+            currentSegment.values.push(values[i]);
+            currentSegment.indices.push(i);
+        } else {
+            if (currentSegment.values.length > 0) {
+                segments.push({ ...currentSegment });
+                currentSegment = { labels: [], values: [], indices: [] };
+            }
+        }
+    }
+ 
+    if (currentSegment.values.length > 0) {
+        segments.push(currentSegment);
+    }
+ 
+    return segments;
+}
+ 
+ 
+// ========================================
+// TIỆN ÍCH HIỂN THỊ
+// ========================================
+ 
+function findStation(data, stationId) {
+    return data.find(station => station.stationId === stationId);
+}
+ 
+function getStatusClass(status) {
+    if (status === "Đang hoạt động") return "status-normal";
+    if (status === "Cảnh báo") return "status-warning";
+    return "status-danger";
+}
+ 
+function formatUpdateTime(record) {
+    const date = new Date(record.timestamp);
+    const day = String(date.getDate()).padStart(2, "0");
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const year = date.getFullYear();
+    return `Cập nhật lúc: ${record.time} ngày ${day}/${month}/${year}`;
+}
+ 
+// Cập nhật khối thông tin trạm (mực nước, trạng thái, thời gian cập nhật).
+function updateStationCard(station, { updateName = true, updateStatusClass = true } = {}) {
+ 
+    document.getElementById("water-level").textContent = station.waterLevel + " m";
+    document.getElementById("station-status").textContent = station.status;
+ 
+    if (updateName) {
+        document.getElementById("station-name").textContent = station.stationName;
+    }
+ 
+    if (updateStatusClass) {
+        document.getElementById("station-status").className = getStatusClass(station.status);
+    }
+ 
+    const latestRecord = station.history[station.history.length - 1];
+    document.getElementById("update-time").textContent = formatUpdateTime(latestRecord);
+}
+ 
+function buildChartConfig(chartData, stationName) {
     return {
-        labels,
-        values,
-        history24h,
-        timeline: [],
-        latestTime,
-        startTime
+        type: "line",
+        data: {
+            labels: chartData.labels,
+            datasets: [{
+                label: "Mực nước (m)",
+                data: chartData.values,
+                borderWidth: 2,
+                tension: 0.3,
+                pointRadius: 3,
+                pointHoverRadius: 6,
+                borderColor: 'rgb(59, 130, 246)',
+                backgroundColor: 'rgba(59, 130, 246, 0.1)'
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                title: { display: true, text: "Diễn biến mực nước - Trạm " + stationName }
+            },
+            scales: {
+                y: { title: { display: true, text: "Mực nước (m)" } },
+                x: { title: { display: true, text: "Thời gian" }, ticks: { autoSkip: true, maxTicksLimit: 12 } }
+            }
+        }
     };
+}
+
+function applyChartData(chartData, stationName) {
+    waterChart.data.labels = chartData.labels;
+    waterChart.data.datasets[0].data = chartData.values;
+    waterChart.options.plugins.title.text = "Diễn biến mước nước - Trạm " + stationName;
+    waterChart.update();
 }
  
  
@@ -109,10 +191,13 @@ function createChartData(data, history, days) {
 // LẦN TẢI ĐẦU TIÊN
 // ========================================
  
-fetch("/api/stations")
+fetch(API_URL)
     .then(response => response.json())
     .then(data => {
  
+        allStationsData = data;
+ 
+        // Gửi dữ liệu 14 trạm sang Windy (hoặc chờ Windy khởi tạo xong)
         if (window.showAllStationsOnWindy) {
             window.showAllStationsOnWindy(data);
         } else {
@@ -122,146 +207,37 @@ fetch("/api/stations")
         const stationSelect = document.getElementById("station");
         const timeFilter = document.getElementById("timeFilter");
  
-        const currentStation = data.find(station => station.stationId === stationSelect.value);
+        const currentStation = findStation(data, stationSelect.value);
  
-        // Cập nhật thông tin trạm
-        document.getElementById("station-name").textContent = currentStation.stationName;
-        document.getElementById("water-level").textContent = currentStation.waterLevel + " m";
-        document.getElementById("station-status").textContent = currentStation.status;
+        updateStationCard(currentStation);
  
-        // Cập nhật thời gian
-        const latestRecord = currentStation.history[currentStation.history.length - 1];
-        const latestDate = new Date(latestRecord.timestamp);
-        const day = String(latestDate.getDate()).padStart(2, "0");
-        const month = String(latestDate.getMonth() + 1).padStart(2, "0");
-        const year = latestDate.getFullYear();
- 
-        document.getElementById("update-time").textContent =
-            "Cập nhật lúc: " + latestRecord.time + " ngày " + day + "/" + month + "/" + year;
- 
-        // Cập nhật trạng thái màu sắc
-        const statusElement = document.getElementById("station-status");
-        statusElement.className = "";
-        if (currentStation.status === "Đang hoạt động") {
-            statusElement.classList.add("status-normal");
-        } else if (currentStation.status === "Cảnh báo") {
-            statusElement.classList.add("status-warning");
-        } else {
-            statusElement.classList.add("status-danger");
-        }
- 
-        // Tạo biểu đồ
         const chartData = createChartData(data, currentStation.history, getChartDays());
  
         const ctx = document.getElementById("waterChart");
-        window.waterChart = new Chart(ctx, {
-            type: "line",
-            data: {
-                labels: chartData.labels,
-                datasets: [{
-                    label: "Mực nước (m)",
-                    data: chartData.values,
-                    borderWidth: 2,
-                    tension: 0.3,
-                    pointRadius: 3,
-                    pointHoverRadius: 6,
-                    spanGaps: false
-                }]
-            },
-            options: {
-                responsive: true,
-                plugins: {
-                    title: {
-                        display: true,
-                        text: "Diễn biến mực nước - Trạm " + currentStation.stationName
-                    }
-                },
-                scales: {
-                    y: {
-                        title: { display: true, text: "Mực nước (m)" }
-                    },
-                    x: {
-                        title: { display: true, text: "Thời gian" },
-                        ticks: { autoSkip: true, maxTicksLimit: 12 }
-                    }
-                }
-            }
-        });
+        waterChart = new Chart(ctx, buildChartConfig(chartData, currentStation.stationName));
  
-        // ========================================
-        // ĐỔI BIỂU ĐỒ KHI CHỌN KHOẢNG THỜI GIAN
-        // ========================================
- 
+        // Đổi khoảng thời gian biểu đồ
         timeFilter.addEventListener("change", function () {
-            const days = getChartDays();
-            const currentStation = data.find(station => station.stationId === stationSelect.value);
+            const station = findStation(allStationsData, stationSelect.value);
+            if (!station) return;
  
-            if (!currentStation) {
-                console.error("Không tìm thấy trạm:", stationSelect.value);
-                return;
-            }
- 
-            const chartData = createChartData(data, currentStation.history, days);
- 
-            window.waterChart.data.labels = chartData.labels;
-            window.waterChart.data.datasets[0].data = chartData.values;
-            window.waterChart.options.plugins.title.text = "Diễn biến mực nước - Trạm " + currentStation.stationName;
-            window.waterChart.update();
+            const updatedChartData = createChartData(allStationsData, station.history, getChartDays());
+            applyChartData(updatedChartData, station.stationName);
         });
  
-        // ========================================
-        // ĐỔI BIỂU ĐỒ KHI CHỌN TRẠM KHÁC
-        // ========================================
- 
+        // Đổi trạm đang xem
         stationSelect.addEventListener("change", function () {
-            const selectedStation = stationSelect.value;
-            const currentStation = data.find(station => station.stationId === selectedStation);
+            const station = findStation(allStationsData, stationSelect.value);
+            if (!station) return;
  
-            if (!currentStation) {
-                console.error("Không tìm thấy trạm:", selectedStation);
-                return;
-            }
+            const updatedChartData = createChartData(allStationsData, station.history || [], getChartDays());
+            applyChartData(updatedChartData, station.stationName);
  
-            // Cập nhật biểu đồ
-            const chartData = createChartData(data, currentStation.history || [], getChartDays());
+            updateStationCard(station);
  
-            waterChart.data.labels = chartData.labels;
-            waterChart.data.datasets[0].data = chartData.values;
-            waterChart.options.plugins.title.text = "Diễn biến mực nước - Trạm " + currentStation.stationName;
-            waterChart.update();
- 
-            // Cập nhật mực nước
-            document.getElementById("water-level").textContent = currentStation.waterLevel + " m";
- 
-            // Cập nhật trạng thái
-            document.getElementById("station-status").textContent = currentStation.status;
- 
-            const statusElement = document.getElementById("station-status");
-            statusElement.className = "";
-            if (currentStation.status === "Đang hoạt động") {
-                statusElement.classList.add("status-normal");
-            } else if (currentStation.status === "Cảnh báo") {
-                statusElement.classList.add("status-warning");
-            } else {
-                statusElement.classList.add("status-danger");
-            }
- 
-            // Cập nhật tên trạm
-            document.getElementById("station-name").textContent = currentStation.stationName;
- 
-            // Cập nhật thời gian
-            const latestUpdateRecord = currentStation.history[currentStation.history.length - 1];
-            const latestDate = new Date(latestUpdateRecord.timestamp);
-            const day = String(latestDate.getDate()).padStart(2, "0");
-            const month = String(latestDate.getMonth() + 1).padStart(2, "0");
-            const year = latestDate.getFullYear();
- 
-            document.getElementById("update-time").textContent =
-                "Cập nhật lúc: " + latestUpdateRecord.time + " ngày " + day + "/" + month + "/" + year;
- 
-            // Chuyển bản đồ Windy
+            // Đưa bản đồ Windy về vị trí trạm vừa chọn
             if (window.windyMap) {
-                window.windyMap.map.setView([currentStation.lat, currentStation.lon], 12);
+                window.windyMap.map.setView([station.lat, station.lon], 12);
             }
         });
  
@@ -272,47 +248,32 @@ fetch("/api/stations")
  
  
 // ========================================
-// TỰ ĐỘNG CẬP NHẬT DỮ LIỆU MỖI 60 GIÂY
+// TỰ ĐỘNG LÀM MỚI DỮ LIỆU MỖI 60 GIÂY
 // ========================================
  
 setInterval(() => {
-    fetch("/api/stations")
+ 
+    fetch(API_URL)
         .then(response => response.json())
         .then(data => {
  
+            allStationsData = data;
+ 
             const stationSelect = document.getElementById("station");
-            const currentStation = data.find(station => station.stationId === stationSelect.value);
+            const currentStation = findStation(data, stationSelect.value);
  
             if (!currentStation) {
                 console.error("Không tìm thấy trạm:", stationSelect.value);
                 return;
             }
  
-            // Cập nhật mực nước
-            document.getElementById("water-level").textContent = currentStation.waterLevel + " m";
-            document.getElementById("station-status").textContent = currentStation.status;
+            updateStationCard(currentStation, { updateName: false, updateStatusClass: false });
  
-            // Cập nhật thời gian
-            const latestRecord = currentStation.history[currentStation.history.length - 1];
-            const latestDate = new Date(latestRecord.timestamp);
-            const day = String(latestDate.getDate()).padStart(2, "0");
-            const month = String(latestDate.getMonth() + 1).padStart(2, "0");
-            const year = latestDate.getFullYear();
- 
-            document.getElementById("update-time").textContent =
-                "Cập nhật lúc: " + latestRecord.time + " ngày " + day + "/" + month + "/" + year;
- 
-            // Cập nhật biểu đồ
             const chartData = createChartData(data, currentStation.history, getChartDays());
- 
-            window.waterChart.data.labels = chartData.labels;
-            window.waterChart.data.datasets[0].data = chartData.values;
-            window.waterChart.options.plugins.title.text = "Diễn biến mực nước - Trạm " + currentStation.stationName;
-            window.waterChart.update();
- 
+            applyChartData(chartData, currentStation.stationName);
         })
         .catch(error => {
             console.error("Lỗi cập nhật API:", error);
         });
  
-}, 60000);
+}, REFRESH_INTERVAL_MS);
