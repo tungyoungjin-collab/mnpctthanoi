@@ -1,14 +1,14 @@
 // ========================================
 // KHỞI TẠO WINDY MAP FORECAST
 // ========================================
-
+ 
 const WINDY_OPTIONS = {
     key: "pSuKAvMD6CdAQreYFmlHd2whzEpYn54x",
     lat: 21.0,
     lon: 105.8,
     zoom: 8
 };
-
+ 
 // Ngưỡng cảnh báo mực nước (m) theo từng trạm
 const warningLevels = {
     F01391: { level1: 15, level2: 16, level3: 17 },
@@ -26,31 +26,31 @@ const warningLevels = {
     F01238: { level1: 5, level2: 6, level3: 6.5 },
     F01828: { level1: 16, level2: 17, level3: 18 }
 };
-
+ 
 // Xác định mức cảnh báo (0-3) dựa trên ngưỡng của từng trạm
 function getWarningLevel(station) {
     const waterLevel = Number(station.waterLevel);
     const thresholds = warningLevels[station.stationId];
-
+ 
     if (!thresholds) {
         return { level: 0, text: "", color: "green" };
     }
-
+ 
     if (waterLevel >= thresholds.level3) {
         return { level: 3, text: "Báo động 3", color: "red" };
     }
-
+ 
     if (waterLevel >= thresholds.level2) {
         return { level: 2, text: "Báo động 2", color: "orange" };
     }
-
+ 
     if (waterLevel >= thresholds.level1) {
         return { level: 1, text: "Báo động 1", color: "yellow" };
     }
-
+ 
     return { level: 0, text: "", color: "green" };
 }
-
+ 
 // Icon marker hình giọt nước, đổi màu theo mức cảnh báo
 function createWarningMarkerIcon(color) {
     return L.divIcon({
@@ -69,12 +69,12 @@ function createWarningMarkerIcon(color) {
         popupAnchor: [0, -28]
     });
 }
-
+ 
 function buildStationPopup(station, warning) {
     const warningText = warning.level > 0
         ? `<br><b style="color:${warning.color};">${warning.text}</b>`
         : "";
-
+ 
     return (
         `<b>${station.stationName}</b><br>` +
         `Mã trạm: ${station.stationId}<br>` +
@@ -84,57 +84,69 @@ function buildStationPopup(station, warning) {
         `<br>Trạng thái: ${station.status}`
     );
 }
-
+ 
 windyInit(WINDY_OPTIONS, windyAPI => {
-
+ 
     window.windyMap = windyAPI;
-
+ 
     // Hiển thị toàn bộ trạm lên bản đồ Windy
     window.showAllStationsOnWindy = function (data) {
-
+ 
         data.forEach(station => {
-
+ 
             const warning = getWarningLevel(station);
-
+ 
             const marker = L.marker(
                 [station.lat, station.lon],
                 { icon: createWarningMarkerIcon(warning.color) }
             ).addTo(windyAPI.map);
-
+ 
             marker.bindPopup(buildStationPopup(station, warning));
+ 
+            // ========================================
+            // KHI CLICK MARKER → CẬP NHẬT STATION SELECTOR & BIỂU ĐỒ
+            // ========================================
+            marker.on('click', function () {
+                const stationSelect = document.getElementById("station");
+                if (stationSelect) {
+                    stationSelect.value = station.stationId;
+                    // Trigger change event để update biểu đồ
+                    stationSelect.dispatchEvent(new Event('change'));
+                }
+            });
         });
-
+ 
         console.log("Đã hiển thị", data.length, "trạm trên Windy");
     };
-
+ 
     // Nếu dữ liệu trạm đã được lấy trước khi Windy sẵn sàng thì hiển thị luôn
     if (window.pendingWindyStations) {
         window.showAllStationsOnWindy(window.pendingWindyStations);
         window.pendingWindyStations = null;
     }
-
+ 
 });
-
+ 
 // ========================================
 // QUẢN LÝ MARKER TRÊN WINDY
 // ========================================
-
+ 
 window.windyMarkers = {};
-
+ 
 window.addWindyStationMarker = function (stationId, stationName, lat, lon, waterLevel, status) {
-
+ 
     if (!window.windyMap) {
         console.log("Windy chưa sẵn sàng");
         return;
     }
-
+ 
     const marker = L.marker([lat, lon]).addTo(window.windyMap.map);
-
+ 
     marker.bindPopup(
         `<b>${stationName}</b><br>` +
         `Mực nước: ${waterLevel} m<br>` +
         `Trạng thái: ${status}`
     );
-
+ 
     window.windyMarkers[stationId] = marker;
 };
