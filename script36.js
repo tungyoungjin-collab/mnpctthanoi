@@ -3,24 +3,6 @@
 const API_URL = "/api/stations";
 const REFRESH_INTERVAL_MS = 60000;
  
-// Ngưỡng cảnh báo mực nước (m) theo từng trạm
-const warningLevels = {
-    F01391: { level1: 15, level2: 16, level3: 17 },
-    F01559: { level1: 9.5, level2: 10.5, level3: 11.5 },
-    F01812: { level1: 7.2, level2: 8.2, level3: 9.1 },
-    F01771: { level1: 9.6, level2: 10.6, level3: 11.6 },
-    F01540: { level1: 6.8, level2: 7.6, level3: 8.4 },
-    F01254: { level1: 6.4, level2: 7.2, level3: 8 },
-    F01532: { level1: 5.5, level2: 6.5, level3: 7.5 },
-    F01223: { level1: 6, level2: 7, level3: 8 },
-    F01215: { level1: 6, level2: 7, level3: 8 },
-    F01247: { level1: 6, level2: 6.5, level3: 7 },
-    F01905: { level1: 4, level2: 4.4, level3: 4.7 },
-    F02031: { level1: 4, level2: 4.4, level3: 4.7 },
-    F01238: { level1: 5, level2: 6, level3: 6.5 },
-    F01828: { level1: 16, level2: 17, level3: 18 }
-};
- 
 // Dữ liệu 14 trạm mới nhất (được cập nhật mỗi lần fetch, kể cả khi tự động làm mới)
 let allStationsData = [];
 let waterChart = null;
@@ -73,17 +55,17 @@ function createChartData(data, history, days) {
     if (!latestTime) {
         return { labels: [], values: [], history24h: [], latestTime: null, startTime: null };
     }
- 
+
     const startTime = new Date(latestTime.getTime() - days * 24 * 60 * 60 * 1000);
- 
+
     let history24h = (history || []).filter(item => {
         const itemTime = new Date(item.timestamp);
         return itemTime >= startTime && itemTime <= latestTime;
     });
- 
+
     // Lọc giờ tròn (:00)
     history24h = history24h.filter(item => item.time.endsWith(":00"));
- 
+
     // Labels: convert UTC+7 và dùng item.time
     const labels = history24h.map(item => {
         const utcDate = new Date(item.timestamp);
@@ -92,7 +74,7 @@ function createChartData(data, history, days) {
         const month = String(vietnamDate.getUTCMonth() + 1).padStart(2, '0');
         return `${day}/${month} ${item.time}`;
     });
- 
+
     const values = history24h.map(item => item.waterLevel);
     return { labels, values, history24h, latestTime, startTime };
 }
@@ -168,90 +150,26 @@ function updateStationCard(station, { updateName = true, updateStatusClass = tru
     document.getElementById("update-time").textContent = formatUpdateTime(latestRecord);
 }
  
-// ========================================
-// TẠO CÁC DATASET CHO CÁC NGƯỠNG CẢNH BÁO
-// ========================================
- 
-function createThresholdDatasets(numLabels, stationId) {
-    const thresholds = warningLevels[stationId];
-    if (!thresholds) {
-        return [];
-    }
- 
-    const datasets = [];
- 
-    // Dataset cho Level 1 (Vàng) - Cảnh báo 1
-    datasets.push({
-        label: `Cảnh báo 1 (${thresholds.level1}m)`,
-        data: Array(numLabels).fill(thresholds.level1),
-        borderColor: 'rgba(255, 193, 7, 1)',
-        backgroundColor: 'rgba(255, 193, 7, 0.1)',
-        borderWidth: 2,
-        borderDash: [5, 5],
-        pointRadius: 0,
-        pointHoverRadius: 0,
-        fill: false,
-        tension: 0
-    });
- 
-    // Dataset cho Level 2 (Cam)
-    datasets.push({
-        label: `Cảnh báo 2 (${thresholds.level2}m)`,
-        data: Array(numLabels).fill(thresholds.level2),
-        borderColor: 'rgba(255, 152, 0, 1)',
-        backgroundColor: 'rgba(255, 152, 0, 0.1)',
-        borderWidth: 2,
-        borderDash: [5, 5],
-        pointRadius: 0,
-        pointHoverRadius: 0,
-        fill: false,
-        tension: 0
-    });
- 
-    // Dataset cho Level 3 (Đỏ)
-    datasets.push({
-        label: `Cảnh báo 3 (${thresholds.level3}m)`,
-        data: Array(numLabels).fill(thresholds.level3),
-        borderColor: 'rgba(244, 67, 54, 1)',
-        backgroundColor: 'rgba(244, 67, 54, 0.1)',
-        borderWidth: 2,
-        borderDash: [5, 5],
-        pointRadius: 0,
-        pointHoverRadius: 0,
-        fill: false,
-        tension: 0
-    });
- 
-    return datasets;
-}
- 
-function buildChartConfig(chartData, stationName, stationId) {
-    // Dataset mực nước thực đo
-    const waterLevelDataset = {
-        label: "Mực nước (m)",
-        data: chartData.values,
-        borderWidth: 2,
-        tension: 0.3,
-        pointRadius: 3,
-        pointHoverRadius: 6,
-        borderColor: 'rgb(59, 130, 246)',
-        backgroundColor: 'rgba(59, 130, 246, 0.1)'
-    };
- 
-    // Thêm các đường ngưỡng cảnh báo
-    const thresholdDatasets = createThresholdDatasets(chartData.labels.length, stationId);
- 
+function buildChartConfig(chartData, stationName) {
     return {
         type: "line",
         data: {
             labels: chartData.labels,
-            datasets: [waterLevelDataset, ...thresholdDatasets]
+            datasets: [{
+                label: "Mực nước (m)",
+                data: chartData.values,
+                borderWidth: 2,
+                tension: 0.3,
+                pointRadius: 3,
+                pointHoverRadius: 6,
+                borderColor: 'rgb(59, 130, 246)',
+                backgroundColor: 'rgba(59, 130, 246, 0.1)'
+            }]
         },
         options: {
             responsive: true,
             plugins: {
-                title: { display: true, text: "Diễn biến mực nước - Trạm " + stationName },
-                legend: { display: true, position: 'top' }
+                title: { display: true, text: "Diễn biến mực nước - Trạm " + stationName }
             },
             scales: {
                 y: { title: { display: true, text: "Mực nước (m)" } },
@@ -260,27 +178,11 @@ function buildChartConfig(chartData, stationName, stationId) {
         }
     };
 }
- 
-function applyChartData(chartData, stationName, stationId) {
-    // Tạo dataset mực nước
-    const waterLevelDataset = {
-        label: "Mực nước (m)",
-        data: chartData.values,
-        borderWidth: 2,
-        tension: 0.3,
-        pointRadius: 3,
-        pointHoverRadius: 6,
-        borderColor: 'rgb(59, 130, 246)',
-        backgroundColor: 'rgba(59, 130, 246, 0.1)'
-    };
- 
-    // Tạo các dataset ngưỡng cảnh báo
-    const thresholdDatasets = createThresholdDatasets(chartData.labels.length, stationId);
- 
-    // Cập nhật chart
+
+function applyChartData(chartData, stationName) {
     waterChart.data.labels = chartData.labels;
-    waterChart.data.datasets = [waterLevelDataset, ...thresholdDatasets];
-    waterChart.options.plugins.title.text = "Diễn biến mực nước - Trạm " + stationName;
+    waterChart.data.datasets[0].data = chartData.values;
+    waterChart.options.plugins.title.text = "Diễn biến mước nước - Trạm " + stationName;
     waterChart.update();
 }
  
@@ -312,7 +214,7 @@ fetch(API_URL)
         const chartData = createChartData(data, currentStation.history, getChartDays());
  
         const ctx = document.getElementById("waterChart");
-        waterChart = new Chart(ctx, buildChartConfig(chartData, currentStation.stationName, currentStation.stationId));
+        waterChart = new Chart(ctx, buildChartConfig(chartData, currentStation.stationName));
  
         // Đổi khoảng thời gian biểu đồ
         timeFilter.addEventListener("change", function () {
@@ -320,7 +222,7 @@ fetch(API_URL)
             if (!station) return;
  
             const updatedChartData = createChartData(allStationsData, station.history, getChartDays());
-            applyChartData(updatedChartData, station.stationName, station.stationId);
+            applyChartData(updatedChartData, station.stationName);
         });
  
         // Đổi trạm đang xem
@@ -329,7 +231,7 @@ fetch(API_URL)
             if (!station) return;
  
             const updatedChartData = createChartData(allStationsData, station.history || [], getChartDays());
-            applyChartData(updatedChartData, station.stationName, station.stationId);
+            applyChartData(updatedChartData, station.stationName);
  
             updateStationCard(station);
  
@@ -368,7 +270,7 @@ setInterval(() => {
             updateStationCard(currentStation, { updateName: false, updateStatusClass: false });
  
             const chartData = createChartData(data, currentStation.history, getChartDays());
-            applyChartData(chartData, currentStation.stationName, currentStation.stationId);
+            applyChartData(chartData, currentStation.stationName);
         })
         .catch(error => {
             console.error("Lỗi cập nhật API:", error);
