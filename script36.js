@@ -229,8 +229,8 @@ function buildChartConfig(chartData, stationName, stationId) {
                     data: chartData.values,
                     borderWidth: 2,
                     tension: 0.3,
-                    pointRadius: 0,
-                    pointHoverRadius: 6,
+                    pointRadius: 3,
+                    pointHoverRadius: 0,
                     borderColor: 'rgb(59, 130, 246)',
                     backgroundColor: 'rgba(59, 130, 246, 0.1)'
                 },
