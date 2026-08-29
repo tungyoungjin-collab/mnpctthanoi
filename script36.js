@@ -257,13 +257,15 @@ function applyChartData(chartData, stationName, stationId) {
     waterChart.data.datasets[0].data = chartData.values;
  
     // Cập nhật các dataset ngưỡng cảnh báo (từ index 1 trở đi)
+    // Cập nhật cả data và label (để legend hiển thị ngưỡng đúng)
     for (let i = 0; i < thresholdDatasets.length; i++) {
         if (waterChart.data.datasets[i + 1]) {
             waterChart.data.datasets[i + 1].data = thresholdDatasets[i].data;
+            waterChart.data.datasets[i + 1].label = thresholdDatasets[i].label;
         }
     }
  
-    waterChart.options.plugins.title.text = "Diễn biến mược nước - Trạm " + stationName;
+    waterChart.options.plugins.title.text = "Diễn biến mực nước - Trạm " + stationName;
     waterChart.update();
 }
  
