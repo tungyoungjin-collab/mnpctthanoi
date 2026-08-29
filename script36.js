@@ -183,7 +183,7 @@ function createThresholdDatasets(numLabels, stationId) {
         {
             label: `BĐ 1: + ${thresholds.level1}m`,
             data: Array(numLabels).fill(thresholds.level1),
-            borderColor: 'rgb(255, 235, 59)',
+            borderColor: 'rgb(243, 219, 6)',
             borderWidth: 2,
             borderDash: [5, 5],
             pointRadius: 0,
@@ -194,7 +194,7 @@ function createThresholdDatasets(numLabels, stationId) {
         {
             label: `BĐ 2: +${thresholds.level2}m`,
             data: Array(numLabels).fill(thresholds.level2),
-            borderColor: 'rgb(255, 87, 34)',
+            borderColor: 'rgb(233, 71, 22)',
             borderWidth: 2,
             borderDash: [5, 5],
             pointRadius: 0,
@@ -205,7 +205,7 @@ function createThresholdDatasets(numLabels, stationId) {
         {
             label: `BĐ 3: +${thresholds.level3}m`,
             data: Array(numLabels).fill(thresholds.level3),
-            borderColor: 'rgb(229, 57, 53)',
+            borderColor: 'rgb(255, 4, 0)',
             borderWidth: 2,
             borderDash: [5, 5],
             pointRadius: 0,
