@@ -3,7 +3,7 @@
 const API_URL = "/api/stations";
 const REFRESH_INTERVAL_MS = 60000;
  
-// Ngưỡng cảnh báo mực nước (m) theo từng trạm
+/*// Ngưỡng cảnh báo mực nước (m) theo từng trạm
 const warningLevels = {
     F01391: { level1: 15, level2: 16, level3: 17 },
     F01559: { level1: 9.5, level2: 10.5, level3: 11.5 },
@@ -19,7 +19,7 @@ const warningLevels = {
     F02031: { level1: 4, level2: 4.4, level3: 4.7 },
     F01238: { level1: 5, level2: 6, level3: 6.5 },
     F01828: { level1: 16, level2: 17, level3: 18 }
-};
+};*/
  
 // Dữ liệu 14 trạm mới nhất (được cập nhật mỗi lần fetch, kể cả khi tự động làm mới)
 let allStationsData = [];
