@@ -329,7 +329,7 @@ app.get("/api/stations", async (req, res) => {
                 SELECT time, water_level AS "waterLevel", timestamp
                 FROM water_levels
                 WHERE station_id = $1
-                AND timestamp >= NOW() - INTERVAL '24 hours'
+                AND timestamp >= NOW() - INTERVAL '30 days'
                 ORDER BY timestamp ASC
             `, [station.stationId]);
 
