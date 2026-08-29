@@ -170,6 +170,7 @@ function updateStationCard(station, { updateName = true, updateStatusClass = tru
  
 // ========================================
 // TẠO CÁC DATASET NGƯỠNG CẢNH BÁO
+// Option 3: Pale Gold - Deep Orange - Red
 // ========================================
  
 function createThresholdDatasets(numLabels, stationId) {
@@ -182,7 +183,7 @@ function createThresholdDatasets(numLabels, stationId) {
         {
             label: `Cảnh báo 1 (${thresholds.level1}m)`,
             data: Array(numLabels).fill(thresholds.level1),
-            borderColor: 'rgba(255, 193, 7, 1)',
+            borderColor: 'rgb(255, 235, 59)',
             borderWidth: 2,
             borderDash: [5, 5],
             pointRadius: 0,
@@ -193,7 +194,7 @@ function createThresholdDatasets(numLabels, stationId) {
         {
             label: `Cảnh báo 2 (${thresholds.level2}m)`,
             data: Array(numLabels).fill(thresholds.level2),
-            borderColor: 'rgba(255, 152, 0, 1)',
+            borderColor: 'rgb(255, 87, 34)',
             borderWidth: 2,
             borderDash: [5, 5],
             pointRadius: 0,
@@ -204,7 +205,7 @@ function createThresholdDatasets(numLabels, stationId) {
         {
             label: `Cảnh báo 3 (${thresholds.level3}m)`,
             data: Array(numLabels).fill(thresholds.level3),
-            borderColor: 'rgba(244, 67, 54, 1)',
+            borderColor: 'rgb(229, 57, 53)',
             borderWidth: 2,
             borderDash: [5, 5],
             pointRadius: 0,
